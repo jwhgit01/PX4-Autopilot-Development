@@ -39,6 +39,7 @@ set(msg_files
 	actuator_controls.msg
 	actuator_outputs.msg
 	adc_report.msg
+	airdata.msg
 	airspeed.msg
 	airspeed_validated.msg
 	battery_status.msg
