@@ -36,6 +36,8 @@ px4_add_module(
 	MAIN airdata
 	SRCS
 		airdata.cpp
+	MODULE_CONFIG
+		module.yaml
 	DEPENDS
 		modules__uORB
 	)

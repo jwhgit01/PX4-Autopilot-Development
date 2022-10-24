@@ -1,0 +1,20 @@
+module_name: airdata
+parameters:
+    - group: airdata
+      definitions:
+        ADU_PORT:
+            description:
+                short: SpinGarage air data unit port
+                long: |
+                    SpinGarage air data unit port
+
+            type: enum
+            values:
+                0: OFF
+                1: TELEM1
+                2: TELEM2
+                3: GPS1
+                4: GPS2
+            reboot_required: true
+            num_instances: 1
+            default: 4
