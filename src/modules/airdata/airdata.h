@@ -374,7 +374,7 @@ class Airdata : public ModuleBase<Airdata>, public ModuleParams {
 			#endif
 
 			// assign values to adu struct
-			const double convFact = M_PI/180.0;
+			// const double convFact = M_PI/180.0;
 			adu.timestamp = timestamp_us;
 			adu.airspeed_kts = airspeed_kts;
 			adu.alpha_vane_deg = (float) -alpha_deg;// to account for boom orientation
