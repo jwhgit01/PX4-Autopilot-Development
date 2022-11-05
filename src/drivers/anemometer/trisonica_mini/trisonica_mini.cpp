@@ -33,13 +33,6 @@
 
 #include "trisonica_mini.hpp"
 
-#include <inttypes.h>
-#include <fcntl.h>
-#include <termios.h>
-
-/* Configuration Constants */
-#define LW_TAKE_RANGE_REG		'd'
-
 TrisonicaMini::TrisonicaMini(const char *port) :
 	ScheduledWorkItem(MODULE_NAME, px4::serial_port_to_wq(port)),
 	_sample_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": read")),
@@ -70,79 +63,48 @@ TrisonicaMini::~TrisonicaMini()
 	perf_free(_comms_errors);
 }
 
-/* If we need to set the smapling interval based on a parameter, do it here. */
 int TrisonicaMini::init()
 {
-	// This used to be in a switch statement based on the hardware model.
-	// _interval = 50000;
-	// _simple_serial = true; // For the rangefinder, this was an option for a different packet structure. We don't need it.
-
 	start();
 
 	return PX4_OK;
 }
 
-/* If we need to send a command to initiate a measurement, this is where we do that:
-int TrisonicaMini::measure()
-{
-	// Send the command to begin a measurement.
-	char cmd = LW_TAKE_RANGE_REG;
-	int ret = ::write(_fd, &cmd, 1);
-
-	if (ret != sizeof(cmd)) {
-		perf_count(_comms_errors);
-		PX4_DEBUG("write fail %d", ret);
-		return ret;
-	}
-
-	return PX4_OK;
-}
-*/
-
 int TrisonicaMini::collect()
 {
 	perf_begin(_sample_perf);
 
+	/* create variables to be populated by the parser */
+	float V_m_s, direction_deg, u_m_s, v_m_s, w_m_s, T_C;
+	bool valid = false;
+
 	/* clear buffer if last read was too long ago */
 	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
 
-	// TODO: may not need this
-	/* the buffer for read chars is buflen minus null termination */
-	char readbuf[sizeof(_linebuf)];
-	unsigned readlen = sizeof(readbuf) - 1;
-
 	/* read from the sensor (uart buffer) */
 	const hrt_abstime timestamp_sample = hrt_absolute_time();
-	int ret = ::read(_fd, &readbuf[0], readlen);
-	if (ret < 0) {
-		PX4_DEBUG("read err: %d", ret);
+	char readbuf[sizeof(_buffer)];
+	int bytes_read = ::read(_fd, &readbuf[0], sizeof(readbuf));
+
+	/* handle read errors */
+	if (bytes_read < 0) {
+		PX4_DEBUG("read err: %d", bytes_read);
 		perf_count(_comms_errors);
 		perf_end(_sample_perf);
-
-		/* only throw an error if we time out */
 		if (read_elapsed > (_interval * 2)) {
-			return ret;
-
+			return bytes_read;
 		} else {
 			return -EAGAIN;
 		}
-
-	} else if (ret == 0) {
+	} else if (bytes_read == 0) {
 		return -EAGAIN;
 	}
 
 	_last_read = hrt_absolute_time();
 
-	/* create the topic to be published */
-	sensor_anemometer_s report{};
-	report.timestamp = _last_read;
-
-	float V_m_s, direction_deg, u_m_s, v_m_s, w_m_s, T_C;
-
 	/* loop through read buffer and parse data */
-	bool valid = false;
 	for (int i = 0; i < ret; i++) {
-		if (OK == trisonica_mini_parser(readbuf[i],_linebuf,&_linebuf_index,&_parse_state,&V_m_s,&direction_deg,&u_m_s,&v_m_s,&w_m_s,&T_C)) {
+		if (OK == trisonica_mini_parser(readbuf[i],_buffer,&_buffer_index,&_parse_state,&V_m_s,&direction_deg,&u_m_s,&v_m_s,&w_m_s,&T_C)) {
 			valid = true;
 		}
 	}
@@ -151,8 +113,15 @@ int TrisonicaMini::collect()
 		return -EAGAIN;
 	}
 
-	// TODO: Update this debugging.
-	// PX4_DEBUG("val (float): %8.4f, raw: %s, valid: %s", (double)distance_m, _linebuf, ((valid) ? "OK" : "NO"));
+	/* create and polulate the topic to be published */
+	sensor_anemometer_s report{};
+	report.timestamp = timestamp_sample;
+	report.V_m_s = V_m_s;
+	report.direction_deg = direction_deg;
+	report.u_m_S = u_m_s;
+	report.v_m_s = v_m_s;
+	report.w_m_s = w_m_s;
+	report.T_C = T_C;
 
 	/* publish the sensor readings */
 	_sensor_anemometer_pub.publish(report);
@@ -162,109 +131,91 @@ int TrisonicaMini::collect()
 	return PX4_OK;
 }
 
-void TrisonicaMini::start()
+int TrisonicaMini::open_serial_port(const speed_t speed)
 {
-	/* reset the report ring and state machine */
-	_collect_phase = false;
+	/* file descriptor initialized? */
+	if (_file_descriptor > 0) {
+		PX4_DEBUG("serial port already open");
+		return PX4_OK;
+	}
 
-	/* schedule a cycle to start things */
-	ScheduleNow();
-}
+	/* configure port flags for read/write, non-controlling, non-blocking. */
+	int flags = (O_RDWR | O_NOCTTY | O_NONBLOCK);
 
-void TrisonicaMini::stop()
-{
-	ScheduleClear();
+	/* open the serial port. */
+	_file_descriptor = ::open(_port, flags);
+
+	/* check for errors */
+	if (_file_descriptor < 0) {
+		PX4_ERR("open failed (%i)", errno);
+		return PX4_ERROR;
+	}
+	if (!isatty(_file_descriptor)) {
+		PX4_WARN("not a serial device");
+		return PX4_ERROR;
+	}
+
+	struct termios uart_config;
+	int termios_state;
+
+	/* fill the struct for the new configuration */
+	tcgetattr(_file_descriptor, &uart_config);
+	uart_config.c_iflag &= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
+
+	/* Clear ONLCR flag (which appends a CR for every LF). */
+	uart_config.c_oflag &= ~ONLCR;
+
+	/* No parity, one stop bit. */
+	uart_config.c_cflag &= ~(CSTOPB | PARENB);
+
+	/* No line processing - echo off, echo newline off, canonical mode off, extended input processing off, signal chars off */
+	uart_config.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+
+	/* set baud rate and check for errors*/
+	if ((termios_state = cfsetispeed(&uart_config, speed)) < 0) {
+		PX4_ERR("CFG: %d ISPD", termios_state);
+		::close(_file_descriptor);
+		return PX4_ERROR;
+	}
+	if ((termios_state = cfsetospeed(&uart_config, speed)) < 0) {
+		PX4_ERR("CFG: %d OSPD", termios_state);
+		::close(_file_descriptor);
+		return PX4_ERROR;
+	}
+	if ((termios_state = tcsetattr(_file_descriptor, TCSANOW, &uart_config)) < 0) {
+		PX4_ERR("baud %d ATTR", termios_state);
+		::close(_file_descriptor);
+		return PX4_ERROR;
+	}
+
+	PX4_INFO("successfully opened UART port %s", _port);
+	return PX4_OK;
 }
 
 void TrisonicaMini::Run()
 {
-	/* fds initialized? */
-	if (_fd < 0) {
-		/* open fd */
-		_fd = ::open(_port, O_RDWR | O_NOCTTY | O_NONBLOCK);
+	/* make sure the serial port is open */
+	open_serial_port();
 
-		if (_fd < 0) {
-			PX4_ERR("open failed (%i)", errno);
-			return;
-		}
+	/* perform collection */
+	int ret_col = collect();
 
-		struct termios uart_config;
+	/* Possible TODO: do something based on ret_col */
+}
 
-		int termios_state;
+void TrisonicaMini::start()
+{
+	/* schedule the driver at regular intervals */
+	ScheduleOnInterval(READ_INTERVAL);
+}
 
-		/* fill the struct for the new configuration */
-		tcgetattr(_fd, &uart_config);
+void TrisonicaMini::stop()
+{
+	/* Ensure the serial port is closed. */
+	::close(_file_descriptor);
 
-		/* clear ONLCR flag (which appends a CR for every LF) */
-		uart_config.c_oflag &= ~ONLCR;
-
-		/* no parity, one stop bit */
-		uart_config.c_cflag &= ~(CSTOPB | PARENB);
-
-		/* sensor baud rate */
-		unsigned baud = B115200;
-
-		/* set baud rate */
-		if ((termios_state = cfsetispeed(&uart_config, speed)) < 0) {
-			PX4_ERR("CFG: %d ISPD", termios_state);
-		}
-
-		if ((termios_state = cfsetospeed(&uart_config, speed)) < 0) {
-			PX4_ERR("CFG: %d OSPD", termios_state);
-		}
-
-		if ((termios_state = tcsetattr(_fd, TCSANOW, &uart_config)) < 0) {
-			PX4_ERR("baud %d ATTR", termios_state);
-		}
-
-	}
-
-	/* collection phase? */
-	if (_collect_phase) {
-
-		/* perform collection */
-		int collect_ret = collect();
-
-		// TODO: Update this timing if necessary
-		if (collect_ret == -EAGAIN) {
-			/* reschedule to grab the missing bits, time to transmit 8 bytes @ 9600 bps */
-			ScheduleDelayed(1042 * 8);
-
-			return;
-		}
-
-		if (OK != collect_ret) {
-
-			// TODO: If the sensor needs time to initialize, do that here.
-			if (hrt_absolute_time() > 5 * 1000 * 1000LL && _consecutive_fail_count < 5) {
-				PX4_ERR("collection error #%u", _consecutive_fail_count);
-			}
-
-			_consecutive_fail_count++;
-
-			/* restart the measurement state machine */
-			start();
-			return;
-
-		} else {
-			/* apparently success */
-			_consecutive_fail_count = 0;
-		}
-
-		/* next phase is measurement */
-		_collect_phase = false;
-	}
-
-	/* measurement phase */
-	if (OK != measure()) {
-		PX4_DEBUG("measure error");
-	}
-
-	/* next phase is collection */
-	_collect_phase = true;
-
-	/* schedule a fresh cycle call when the measurement is done */
-	ScheduleDelayed(_interval);
+	/* Clear the work queue schedule. */
+	ScheduleClear();
 }
 
 void TrisonicaMini::print_info()

@@ -36,7 +36,7 @@
  * @author Jeremy W. Hopwood
  *
  * Driver for the TriSonica Mini 3D sonic anemometer
- * 
+ *
  */
 
 #pragma once
@@ -48,35 +48,58 @@
 #include <lib/parameters/param.h>
 #include <lib/perf/perf_counter.h>
 
+#include <uORB/PublicationMulti.hpp>
+#include <uORB/topics/sensor_anemometer.h>
+
+#include <inttypes.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <termios.h>
+#include <unistd.h>
+
 #include "parser.h"
+
+using namespace time_literals;
+
+#define BUFFER_LENGTH 256
+#define READ_INTERVAL 10_ms
+#define BAUD B115200
 
 class TrisonicaMini : public px4::ScheduledWorkItem
 {
 public:
+	/**
+	 * Default Constructor
+	 * @param port The serial port to open for communicating with the sensor.
+	 */
 	TrisonicaMini(const char *port);
 	~TrisonicaMini() override;
 
-	int 			init();
-	void			print_info();
+	int init();
+	void print_info();
 
 private:
 
-	void			start();
-	void			stop();
-	void			Run() override;
-	int				measure();
-	int				collect();
+	void start();
+	void stop();
+	void Run() override;
+	int measure();
+	int collect();
 
-	char 			_port[20] {};
-	int 			_interval{50000}; // TODO: determine what this should be.
-	bool			_collect_phase{false};
-	int				_fd{-1};
-	char			_linebuf[10] {};
-	unsigned		_linebuf_index{0};
-	hrt_abstime		_last_read{0};
+	int _interval{READ_INTERVAL}; // TODO: determine what this should be.
+	bool _collect_phase{false};
 
-	unsigned		_consecutive_fail_count;
-	
+	int open_serial_port(const speed_t speed = BAUD);
+
+	char _port[20] {};
+	int _file_descriptor{-1};
+	char _buffer[BUFFER_LENGTH] {};
+	unsigned _buffer_index{0};
+	hrt_abstime _last_read{0};
+	enum TRIMINI_PARSE_STATE _parse_state {TRIMINI_PARSE_STATE0_UNSYNC};
+
+	unsigned _consecutive_fail_count;
+
 	uORB::PublicationMulti<sensor_anemometer_s> _sensor_anemometer_pub{ORB_ID(sensor_anemometer)};
 
 	perf_counter_t	_sample_perf;
