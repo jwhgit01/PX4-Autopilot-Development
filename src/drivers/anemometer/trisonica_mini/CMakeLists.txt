@@ -37,6 +37,7 @@ px4_add_module(
 		trisonica_mini_main.cpp
 		trisonica_mini.cpp
 		trisonica_mini.hpp
+		parser.cpp
 	DEPENDS
 		px4_work_queue
 	MODULE_CONFIG

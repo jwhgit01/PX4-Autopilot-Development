@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2014-2019 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2014 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,54 +32,24 @@
  ****************************************************************************/
 
 /**
- * @file trisonica_mini.hpp
+ * @file parser.cpp
+ * @author Lorenz Meier <lm@inf.ethz.ch>
  * @author Jeremy W. Hopwood
  *
- * Driver for the TriSonica Mini 3D sonic anemometer
- * 
+ * Declarations of parser for the TriSonica Mini 3D sonic anemometer
  */
 
 #pragma once
 
-#include <px4_platform_common/px4_config.h>
-#include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
-#include <drivers/drv_hrt.h>
-#include <drivers/device/device.h>
-#include <lib/parameters/param.h>
-#include <lib/perf/perf_counter.h>
-
-#include "parser.h"
-
-class TrisonicaMini : public px4::ScheduledWorkItem
-{
-public:
-	TrisonicaMini(const char *port);
-	~TrisonicaMini() override;
-
-	int 			init();
-	void			print_info();
-
-private:
-
-	void			start();
-	void			stop();
-	void			Run() override;
-	int				measure();
-	int				collect();
-
-	char 			_port[20] {};
-	int 			_interval{50000}; // TODO: determine what this should be.
-	bool			_collect_phase{false};
-	int				_fd{-1};
-	char			_linebuf[10] {};
-	unsigned		_linebuf_index{0};
-	hrt_abstime		_last_read{0};
-
-	unsigned		_consecutive_fail_count;
-	
-	uORB::PublicationMulti<sensor_anemometer_s> _sensor_anemometer_pub{ORB_ID(sensor_anemometer)};
-
-	perf_counter_t	_sample_perf;
-	perf_counter_t	_comms_errors;
-
+// TODO: update these states
+enum TRIMINI_PARSE_STATE {
+	TRIMINI_PARSE_STATE0_UNSYNC = 0,
+	TRIMINI_PARSE_STATE1_SYNC,
+	TRIMINI_PARSE_STATE2_GOT_DIGIT0,
+	TRIMINI_PARSE_STATE3_GOT_DOT,
+	TRIMINI_PARSE_STATE4_GOT_DIGIT1,
+	TRIMINI_PARSE_STATE5_GOT_DIGIT2,
+	TRIMINI_PARSE_STATE6_GOT_CARRIAGE_RETURN
 };
+
+int trisonica_mini_parser(char c, char *parserbuf, unsigned *parserbuf_index, enum LW_PARSE_STATE *state, float *vx, float *vy, float *vz, float *T);

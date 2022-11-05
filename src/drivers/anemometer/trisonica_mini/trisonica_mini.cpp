@@ -136,36 +136,20 @@ int TrisonicaMini::collect()
 	sensor_anemometer_s report{};
 	report.timestamp = _last_read;
 
-	float vx_m_s, vy_m_s, vz_m_s;
+	float vx_m_s, vy_m_s, vz_m_s, T_C;
 	bool valid = false;
-
-	// TODO: determine the best method for parsing the serial data...
-	if (_simple_serial) {
-		// Simplified protocol used by the SF30/B and SF30/C
-		// First byte: MSB of byte is set;  remaining bits are high "byte" of reading
-		// Second byte: MSB of byte is not set; remaining bits are low "byte" of reading
-		// Distance in centimeters = (buf[0] & 0x7F)*128 + buf[0]
-		bool have_msb = false;
-
-		for (int i = 0; i < ret; i++) {
-			if (have_msb && !(readbuf[i] & 0x80)) {
-				distance_m += readbuf[i] * .01f;
-				valid = true;
-				break;
-
-			} else {
-				if (readbuf[i] & 0x80) {
-					have_msb = true;
-					distance_m = (readbuf[i] & 0x7F) * 1.28f;
-				}
-			}
-		}
-
-	} else {
-		for (int i = 0; i < ret; i++) {
-			if (OK == lightware_parser(readbuf[i], _linebuf, &_linebuf_index, &_parse_state, &distance_m)) {
-				valid = true;
-			}
+	
+	/* loop through read buffer and parse data */
+	for (int i = 0; i < ret; i++) {
+		if (OK == trisonica_mini_parser(readbuf[i],
+										_linebuf,
+										&_linebuf_index,
+										&_parse_state,
+										&vx_m_s,
+										&vy_m_s,
+										&vz_m_s,
+										&T_C)) {
+			valid = true;
 		}
 	}
 
