@@ -59,30 +59,103 @@
 	};
 #endif
 
-int trisonica_mini_parser(char c, char *parserbuf, unsigned *parserbuf_index, enum LW_PARSE_STATE *state, float *vx, float *vy, float *vz, float *T)
+/*
+ * This parser relies on the trisonica mini anemometer to be configured
+ * with custom delimiters where a colon ":" comes after the tag and a
+ * comma "," comes after the number. An example is given as follows:
+ *
+ * 	S:05.2,D:112,U:-01.9,V:04.7.W:01.1,T:22.6\r\n
+ *
+ * The tags are in the following format and order:
+ *	S = Wind Speed
+ *	D = Wind Direction
+ *	U = U-Vector
+ *	V = V-Vector
+ *	W = W-Vector
+ *	T = Temperature
+ * V_m_s,&direction_deg,&u_m_s,&v_m_s,&w_m_s,&T_C)
+ */
+int trisonica_mini_parser(
+	char c,
+	char *parserbuf,
+	unsigned *parserbuf_index,
+	enum TRIMINI_PARSE_STATE *state,
+	float *S,
+	float *D,
+	float *U,
+	float *V,
+	float *W,
+	float *T)
 {
 	int ret = -1;
 	char *end;
 
+	// TODO: everything below here that is uncommented is junk.
+
 	switch (*state) {
-	case LW_PARSE_STATE0_UNSYNC:
+	case TRIMINI_PARSE_STATE0_UNSYNC:
+
+		/* If we reach a new line, we know where we are */
 		if (c == '\n') {
-			*state = LW_PARSE_STATE1_SYNC;
+
+			/* start looking for data */
+			*state = TRIMINI_PARSE_STATE1_SYNC;
+
+			/* reset the parsing buffer index */
 			(*parserbuf_index) = 0;
 		}
 
 		break;
 
-	case LW_PARSE_STATE1_SYNC:
-		if (c >= '0' && c <= '9') {
-			*state = LW_PARSE_STATE2_GOT_DIGIT0;
+	case TRIMINI_PARSE_STATE1_SYNC:
+		if (c == 'S') {
+			*state = TRIMINI_PARSE_STATE2_GOT_SPEED;
 			parserbuf[*parserbuf_index] = c;
 			(*parserbuf_index)++;
+		} else if (c == 'D') {
+			*state = TRIMINI_PARSE_STATE3_GOT_DIRECTION;
+			parserbuf[*parserbuf_index] = c;
+			(*parserbuf_index)++;
+		} else if (c == 'U') {
+			*state = TRIMINI_PARSE_STATE4_GOT_U;
+			parserbuf[*parserbuf_index] = c;
+			(*parserbuf_index)++;
+		} else if (c == 'V') {
+			*state = TRIMINI_PARSE_STATE5_GOT_V;
+			parserbuf[*parserbuf_index] = c;
+			(*parserbuf_index)++;
+		} else if (c == 'W') {
+			*state = TRIMINI_PARSE_STATE6_GOT_W;
+			parserbuf[*parserbuf_index] = c;
+			(*parserbuf_index)++;
+		} else if (c == 'T') {
+			*state = TRIMINI_PARSE_STATE7_GOT_T;
+			parserbuf[*parserbuf_index] = c;
+			(*parserbuf_index)++;
+		} else {
+			*state = TRIMINI_PARSE_STATE0_UNSYNC;
 		}
 
 		break;
 
-	case LW_PARSE_STATE2_GOT_DIGIT0:
+	case TRIMINI_PARSE_STATE2_GOT_SPEED:
+		if (c >= '0' && c <= '9') {
+			*state = TRIMINI_PARSE_STATE1_SYNC;
+			parserbuf[*parserbuf_index] = c;
+			(*parserbuf_index)++;
+
+		} else if (c == '.') {
+			*state = LW_PARSE_STATE3_GOT_DOT;
+			parserbuf[*parserbuf_index] = c;
+			(*parserbuf_index)++;
+
+		} else {
+			*state = LW_PARSE_STATE0_UNSYNC;
+		}
+
+		break;
+
+	case TRIMINI_PARSE_STATE2_GOT_DIGIT0:
 		if (c >= '0' && c <= '9') {
 			*state = LW_PARSE_STATE2_GOT_DIGIT0;
 			parserbuf[*parserbuf_index] = c;
@@ -99,19 +172,19 @@ int trisonica_mini_parser(char c, char *parserbuf, unsigned *parserbuf_index, en
 
 		break;
 
-	case LW_PARSE_STATE3_GOT_DOT:
+	case TRIMINI_PARSE_STATE3_GOT_DOT:
 		if (c >= '0' && c <= '9') {
 			*state = LW_PARSE_STATE4_GOT_DIGIT1;
 			parserbuf[*parserbuf_index] = c;
 			(*parserbuf_index)++;
 
 		} else {
-			*state = LW_PARSE_STATE0_UNSYNC;
+			*state = TRIMINI_PARSE_STATE0_UNSYNC;
 		}
 
 		break;
 
-	case LW_PARSE_STATE4_GOT_DIGIT1:
+	case TRIMINI_PARSE_STATE4_GOT_DIGIT1:
 		if (c >= '0' && c <= '9') {
 			*state = LW_PARSE_STATE5_GOT_DIGIT2;
 			parserbuf[*parserbuf_index] = c;
@@ -123,7 +196,7 @@ int trisonica_mini_parser(char c, char *parserbuf, unsigned *parserbuf_index, en
 
 		break;
 
-	case LW_PARSE_STATE5_GOT_DIGIT2:
+	case TRIMINI_PARSE_STATE5_GOT_DIGIT2:
 		if (c == '\r') {
 			*state = LW_PARSE_STATE6_GOT_CARRIAGE_RETURN;
 
@@ -133,16 +206,16 @@ int trisonica_mini_parser(char c, char *parserbuf, unsigned *parserbuf_index, en
 
 		break;
 
-	case LW_PARSE_STATE6_GOT_CARRIAGE_RETURN:
+	case TRIMINI_PARSE_STATE6_GOT_CARRIAGE_RETURN:
 		if (c == '\n') {
 			parserbuf[*parserbuf_index] = '\0';
 			*dist = strtod(parserbuf, &end);
-			*state = LW_PARSE_STATE1_SYNC;
+			*state = TRIMINI_PARSE_STATE1_SYNC;
 			*parserbuf_index = 0;
 			ret = 0;
 
 		} else {
-			*state = LW_PARSE_STATE0_UNSYNC;
+			*state = TRIMINI_PARSE_STATE0_UNSYNC;
 		}
 
 		break;

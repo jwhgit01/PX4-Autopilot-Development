@@ -106,6 +106,7 @@ int TrisonicaMini::collect()
 	/* clear buffer if last read was too long ago */
 	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
 
+	// TODO: may not need this
 	/* the buffer for read chars is buflen minus null termination */
 	char readbuf[sizeof(_linebuf)];
 	unsigned readlen = sizeof(readbuf) - 1;
@@ -131,28 +132,20 @@ int TrisonicaMini::collect()
 	}
 
 	_last_read = hrt_absolute_time();
-	
+
 	/* create the topic to be published */
 	sensor_anemometer_s report{};
 	report.timestamp = _last_read;
 
-	float vx_m_s, vy_m_s, vz_m_s, T_C;
-	bool valid = false;
-	
+	float V_m_s, direction_deg, u_m_s, v_m_s, w_m_s, T_C;
+
 	/* loop through read buffer and parse data */
+	bool valid = false;
 	for (int i = 0; i < ret; i++) {
-		if (OK == trisonica_mini_parser(readbuf[i],
-										_linebuf,
-										&_linebuf_index,
-										&_parse_state,
-										&vx_m_s,
-										&vy_m_s,
-										&vz_m_s,
-										&T_C)) {
+		if (OK == trisonica_mini_parser(readbuf[i],_linebuf,&_linebuf_index,&_parse_state,&V_m_s,&direction_deg,&u_m_s,&v_m_s,&w_m_s,&T_C)) {
 			valid = true;
 		}
 	}
-
 
 	if (!valid) {
 		return -EAGAIN;
