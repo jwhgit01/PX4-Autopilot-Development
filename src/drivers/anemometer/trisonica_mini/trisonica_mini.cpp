@@ -103,13 +103,11 @@ int TrisonicaMini::collect()
 	_last_read = hrt_absolute_time();
 
 	/* loop through read buffer and parse data */
-	for (int i = 0; i < ret; i++) {
-		if (OK == trisonica_mini_parser(readbuf[i],_buffer,&_buffer_index,&_parse_state,&V_m_s,&direction_deg,&u_m_s,&v_m_s,&w_m_s,&T_C)) {
-			valid = true;
-		}
+	for (int i = 0; i < bytes_read; i++) {
+		valid = trisonica_mini_parser(readbuf[i],_buffer,&_buffer_index,&_parse_state,&V_m_s,&direction_deg,&u_m_s,&v_m_s,&w_m_s,&T_C);
 	}
 
-	if (!valid) {
+	if (valid<1) {
 		return -EAGAIN;
 	}
 

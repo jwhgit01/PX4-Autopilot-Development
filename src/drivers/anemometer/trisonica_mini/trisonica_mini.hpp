@@ -61,7 +61,7 @@
 
 using namespace time_literals;
 
-#define BUFFER_LENGTH 256
+#define BUFFER_LENGTH 512
 #define READ_INTERVAL 10_ms
 #define BAUD B115200
 
@@ -94,9 +94,9 @@ private:
 	char _port[20] {};
 	int _file_descriptor{-1};
 	char _buffer[BUFFER_LENGTH] {};
-	unsigned _buffer_index{0};
+	int _buffer_index{0};
 	hrt_abstime _last_read{0};
-	enum TRIMINI_PARSE_STATE _parse_state {TRIMINI_PARSE_STATE0_UNSYNC};
+	int _parse_state{0};
 
 	unsigned _consecutive_fail_count;
 

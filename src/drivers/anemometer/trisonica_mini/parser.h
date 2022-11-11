@@ -32,8 +32,7 @@
  ****************************************************************************/
 
 /**
- * @file parser.cpp
- * @author Lorenz Meier <lm@inf.ethz.ch>
+ * @file parser.h
  * @author Jeremy W. Hopwood
  *
  * Declarations of parser for the TriSonica Mini 3D sonic anemometer
@@ -41,18 +40,26 @@
 
 #pragma once
 
-// TODO: update these states
-enum TRIMINI_PARSE_STATE {
-	TRIMINI_PARSE_STATE0_UNSYNC = 0,
-	TRIMINI_PARSE_STATE1_SYNC,
-	TRIMINI_PARSE_STATE2_GOT_SPEED,
-	TRIMINI_PARSE_STATE3_GOT_DIRECTION,
-	TRIMINI_PARSE_STATE4_GOT_U,
-	TRIMINI_PARSE_STATE5_GOT_V,
-	TRIMINI_PARSE_STATE6_GOT_W,
-	TRIMINI_PARSE_STATE7_GOT_T,
-	TRIMINI_PARSE_STATE8_GOT_CR,
-	TRIMINI_PARSE_STATE9_GOT_LF
-};
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
-int trisonica_mini_parser(char c, char *parserbuf, unsigned *parserbuf_index, enum TRIMINI_PARSE_STATE *state, float *vx, float *vy, float *vz, float *T);
+#define START_PACKET 'S'
+#define END_PACKET '\n'
+
+/**
+ * Parses serial data and assembles a valid packet containing sensor data.
+ * Returns an it stating whether or not the packet is valid and whether there
+ * are any errors.
+ */
+int trisonica_mini_parser(
+	char c,
+	char *buffer,
+	unsigned *buffer_index,
+	int *parse_state,
+	float *S,
+	float *D,
+	float *U,
+	float *V,
+	float *W,
+	float *T);

@@ -39,31 +39,15 @@
  */
 
 #include "parser.h"
-#include <string.h>
-#include <stdlib.h>
-
-//#define TRIMINI_DEBUG
-
-#ifdef LW_DEBUG
-	#include <stdio.h>
-
-	const char *parser_state[] = {
-		"0_UNSYNC",
-		"1_SYNC",
-		"2_GOT_DIGIT0",
-		"3_GOT_DOT",
-		"4_GOT_DIGIT1",
-		"5_GOT_DIGIT2",
-		"6_GOT_CARRIAGE_RETURN"
-	};
-#endif
 
 /*
- * This parser relies on the trisonica mini anemometer to be configured
- * with custom delimiters where a colon ":" comes after the tag and a
- * comma "," comes after the number. An example is given as follows:
+ * This function parses data from a read buffer one character
+ * at a time and returns a valid packet once assembled.
  *
- * 	S: 05.2,D: 112,U:-01.9,V: 04.7,W: 01.1,T: 22.6\r\n
+ * This parser relies on the trisonica mini anemometer data
+ * packets to be configured as follows:
+ *
+ * 	S 05.2 D 112 U -01.9 V 04.7 W 01.1 T 22.6 \r\n
  *
  * The tags are in the following format and order:
  *	S = Wind Speed
@@ -74,122 +58,59 @@
  *	T = Temperature
  *
  */
-int trisonica_mini_parser(
-	char c,
-	char *buffer,
-	unsigned *buffer_index,
-	enum TRIMINI_PARSE_STATE *state,
-	float *S,
-	float *D,
-	float *U,
-	float *V,
-	float *W,
-	float *T)
-{
-	int ret = -1;
-	char *end;
+int trisonica_mini_parser(char c,char *buffer,int *buffer_index,int *parse_state,float *S,float *D,float *U,float *V,float *W,float *T){
 
-	// TODO: everything below here that is uncommented is junk.
-	// Start with the driver J wrote for the spingarage.
+	/* If we are lost, look for a start or end character */
+	if ( (*parse_state)<1 ){
+		switch (c) {
+		case START_PACKET:
+			buffer[0] = c;
+			(*buffer_index) = 1;
+			(*parse_state) = 1;
+			break;
 
-	switch (*state) {
-	case TRIMINI_PARSE_STATE0_UNSYNC:
+		case END_PACKET:
+			(*buffer_index)++;
+			(*parse_state) = 1;
+			break;
 
-		/* If we reach a new line, we know where we are */
-		if (c == '\n') {
-
-			/* start looking for data */
-			*state = TRIMINI_PARSE_STATE1_SYNC;
-
-			/* reset the parsing buffer index */
-			(*buffer_index) = 0;
+		default:
+			(*buffer_index)++;
+			break;
 		}
-
-		break;
-
-	case TRIMINI_PARSE_STATE1_SYNC:
-		if (c == 'S') {
-			*state = TRIMINI_PARSE_STATE2_GOT_SPEED;
-			buffer[*buffer_index] = c;
-			(*buffer_index)++;
-		} else if (c == 'D') {
-			*state = TRIMINI_PARSE_STATE3_GOT_DIRECTION;
-			buffer[*buffer_index] = c;
-			(*buffer_index)++;
-		} else if (c == 'U') {
-			*state = TRIMINI_PARSE_STATE4_GOT_U;
-			buffer[*buffer_index] = c;
-			(*buffer_index)++;
-		} else if (c == 'V') {
-			*state = TRIMINI_PARSE_STATE5_GOT_V;
-			buffer[*buffer_index] = c;
-			(*buffer_index)++;
-		} else if (c == 'W') {
-			*state = TRIMINI_PARSE_STATE6_GOT_W;
-			buffer[*buffer_index] = c;
-			(*buffer_index)++;
-		} else if (c == 'T') {
-			*state = TRIMINI_PARSE_STATE7_GOT_T;
-			buffer[*buffer_index] = c;
-			(*buffer_index)++;
-		} else {
-			*state = TRIMINI_PARSE_STATE0_UNSYNC;
-		}
-
-		break;
-
-	case TRIMINI_PARSE_STATE2_GOT_SPEED:
-		if (c >= '0' && c <= '9') {
-			*state = TRIMINI_PARSE_STATE1_SYNC;
-			buffer[*buffer_index] = c;
-			(*buffer_index)++;
-
-		} else if (c == '.') {
-			*state = LW_PARSE_STATE3_GOT_DOT;
-			buffer[*buffer_index] = c;
-			(*buffer_index)++;
-
-		} else {
-			*state = LW_PARSE_STATE0_UNSYNC;
-		}
-
-		break;
-
-	case TRIMINI_PARSE_STATE2_GOT_DIGIT0:
-		if (c >= '0' && c <= '9') {
-			*state = LW_PARSE_STATE2_GOT_DIGIT0;
-			buffer[*buffer_index] = c;
-			(*buffer_index)++;
-
-		} else if (c == '.') {
-			*state = LW_PARSE_STATE3_GOT_DOT;
-			buffer[*buffer_index] = c;
-			(*buffer_index)++;
-
-		} else {
-			*state = LW_PARSE_STATE0_UNSYNC;
-		}
-
-		break;
-
-	case TRIMINI_PARSE_STATE6_GOT_CARRIAGE_RETURN:
-		if (c == '\n') {
-			buffer[*buffer_index] = '\0';
-			*dist = strtod(buffer, &end);
-			*state = TRIMINI_PARSE_STATE1_SYNC;
-			*buffer_index = 0;
-			ret = 0;
-
-		} else {
-			*state = TRIMINI_PARSE_STATE0_UNSYNC;
-		}
-
-		break;
+		return 0;
 	}
 
-#ifdef TRIMINI_DEBUG
-	printf("state: TRIMINI_PARSE_STATE%s\n", parser_state[*state]);
-#endif
+	/* If we have gotten to here, we are not lost and are either
+	   indexed at the start, middle, or end of a packet. */
+	switch (c) {
 
-	return ret;
+		/* If we get a start-of-packet, begin storing it. */
+		case START_PACKET:
+			buffer[0] = c;
+			(*buffer_index) = 1;
+			return 0;
+			break;
+
+		/* If we get an end-of-packet character, return the valid buffer. */
+		case END_PACKET:
+			buffer[*buffer_index] = '\0';
+			int scan_result = sscanf(buffer,"S%f D%f U%f V%f W%lf T%lf\r",S,D,U,V,W,T);
+			if (scan_result != 6){
+				(*parse_state) = 0;
+				return 0;
+			}
+			/* If the result is good, reset the index to zero and return OK */
+			(*buffer_index) = 0;
+			return 1;
+			break;
+
+		/* If it's not a start or end of packet, put it in the buffer to be scanned. */
+		default:
+			buffer[*buffer_index] = c;
+			(*buffer_index)++;
+			return 0;
+			break;
+	}
+
 }
