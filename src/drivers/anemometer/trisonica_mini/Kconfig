@@ -1,0 +1,5 @@
+menuconfig DRIVERS_ANEMOMETER_TRISONICA_MINI
+	bool "trisonica"
+	default n
+	---help---
+		Enable support for trisonica_mini
