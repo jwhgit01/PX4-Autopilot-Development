@@ -1,0 +1,7 @@
+module_name: Trisonica Mini 3D Sonic Anemometer
+serial_config:
+    - command: trisonica_mini start -d ${SERIAL_DEV}
+      port_config_param:
+        name: SENS_TRISONICA_CFG
+        group: Sensors
+
