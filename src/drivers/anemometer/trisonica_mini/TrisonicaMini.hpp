@@ -79,6 +79,7 @@ public:
 
 	int init();
 	void print_info();
+	int messagesCounter = 0;
 
 private:
 

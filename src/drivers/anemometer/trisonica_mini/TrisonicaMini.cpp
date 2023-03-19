@@ -44,14 +44,15 @@ TrisonicaMini::TrisonicaMini(const char *port) :
 	/* enforce null termination */
 	_port[sizeof(_port) - 1] = '\0';
 
-	// device::Device::DeviceId device_id;
-	// device_id.devid_s.bus_type = device::Device::DeviceBusType_SERIAL;
+	device::Device::DeviceId device_id;
+	device_id.devid_s.bus_type = device::Device::DeviceBusType_SERIAL;
+	//IF using telem2, utilize the /dev/ttyS1 port name as a parameter
 
-	// uint8_t bus_num = atoi(&_port[strlen(_port) - 1]); // Assuming '/dev/ttySx'
+	uint8_t bus_num = atoi(&_port[strlen(_port) - 1]); // Assuming '/dev/ttySx'
 
-	// if (bus_num < 10) {
-	// 	device_id.devid_s.bus = bus_num;
-	// }
+	if (bus_num < 10) {
+		device_id.devid_s.bus = bus_num;
+	}
 
 
 
@@ -75,35 +76,54 @@ int TrisonicaMini::init()
 int TrisonicaMini::collect()
 {
 	perf_begin(_sample_perf);
+	messagesCounter++;
+
 
 	/* create variables to be populated by the parser */
 	// float V_m_s, direction_deg, u_m_s, v_m_s, w_m_s, T_C;
 	// bool valid = false;
 
 	/* clear buffer if last read was too long ago */
-	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
+	// int64_t read_elapsed = hrt_elapsed_time(&_last_read);
 
 	/* read from the sensor (uart buffer) */
 	// const hrt_abstime timestamp_sample = hrt_absolute_time();
 	char readbuf[sizeof(_buffer)];
 	int bytes_read = ::read(_file_descriptor, &readbuf[0], sizeof(readbuf));
 
-	/* handle read errors */
-	if (bytes_read < 0) {
-		PX4_DEBUG("read err: %d", bytes_read);
-		perf_count(_comms_errors);
-		perf_end(_sample_perf);
-		if (read_elapsed > (_interval * 2)) {
-			return bytes_read;
-		} else {
-			return -EAGAIN;
+
+	if(messagesCounter % 100 == 0){
+		if(bytes_read > 0){
+			for(int i = 0; i < bytes_read; i++){
+				PX4_INFO("%s", &readbuf[i]);
+			}
+			PX4_INFO("\n");
 		}
-	} else if (bytes_read == 0) {
-		return -EAGAIN;
+
+		if(bytes_read < 0){
+			PX4_INFO("err:%s",strerror(errno));
+		}
+			PX4_INFO("I would collect here:%d", messagesCounter);
+			PX4_INFO("Bytes:%d", bytes_read);
 	}
 
-	_last_read = hrt_absolute_time();
-	PX4_INFO("Collection starting.\n");
+
+	// /* handle read errors */
+	// if (bytes_read < 0) {
+	// 	PX4_DEBUG("read err: %d", bytes_read);
+	// 	perf_count(_comms_errors);
+	// 	perf_end(_sample_perf);
+	// 	if (read_elapsed > (_interval * 2)) {
+	// 		return bytes_read;
+	// 	} else {
+	// 		return -EAGAIN;
+	// 	}
+	// } else if (bytes_read == 0) {
+	// 	return -EAGAIN;
+	// }
+
+	// _last_read = hrt_absolute_time();
+	// PX4_INFO("Collection starting.\n");
 
 	/* loop through read buffer and parse data */
 	// for (int i = 0; i < bytes_read; i++) {
@@ -143,7 +163,7 @@ int TrisonicaMini::open_serial_port(const speed_t speed)
 	}
 
 	/* configure port flags for read/write, non-controlling, non-blocking. */
-	int flags = (O_RDWR | O_NOCTTY | O_NONBLOCK);
+	int flags = (O_RDWR | O_NOCTTY | O_NDELAY);
 
 	/* open the serial port. */
 	_file_descriptor = ::open(_port, flags);
@@ -219,6 +239,7 @@ void TrisonicaMini::stop()
 {
 	/* Ensure the serial port is closed. */
 	::close(_file_descriptor);
+	PX4_INFO("STOPPED\n");
 
 	/* Clear the work queue schedule. */
 	ScheduleClear();
