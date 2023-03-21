@@ -102,6 +102,10 @@ int TrisonicaMini::collect()
 
 		if(bytes_read < 0){
 			PX4_INFO("err:%s",strerror(errno));
+			memset(readbuf, 0, sizeof(readbuf));
+
+
+
 		}
 			PX4_INFO("I would collect here:%d", messagesCounter);
 			PX4_INFO("Bytes:%d", bytes_read);
@@ -158,7 +162,7 @@ int TrisonicaMini::open_serial_port(const speed_t speed)
 {
 	/* file descriptor initialized? */
 	if (_file_descriptor > 0) {
-		PX4_DEBUG("serial port already open");
+		PX4_INFO("serial port already open");
 		return PX4_OK;
 	}
 
@@ -183,7 +187,7 @@ int TrisonicaMini::open_serial_port(const speed_t speed)
 
 	/* fill the struct for the new configuration */
 	tcgetattr(_file_descriptor, &uart_config);
-	uart_config.c_iflag &= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
+	uart_config.c_iflag &= ~(IGNBRK | BRKINT | ICRNL | INLCR);
 
 	/* Clear ONLCR flag (which appends a CR for every LF). */
 	uart_config.c_oflag &= ~ONLCR;
