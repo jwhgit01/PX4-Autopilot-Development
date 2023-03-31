@@ -54,7 +54,6 @@ TrisonicaMini::TrisonicaMini(const char *port) :
 	// }
 
 
-
 }
 
 TrisonicaMini::~TrisonicaMini()
@@ -77,20 +76,21 @@ int TrisonicaMini::collect()
 	perf_begin(_sample_perf);
 
 	/* create variables to be populated by the parser */
-	// float V_m_s, direction_deg, u_m_s, v_m_s, w_m_s, T_C;
-	// bool valid = false;
+
+	double V_m_s, direction_deg, u_m_s, v_m_s, w_m_s, T_C;
+	bool valid = false;
 
 	/* clear buffer if last read was too long ago */
 	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
 
 	/* read from the sensor (uart buffer) */
-	// const hrt_abstime timestamp_sample = hrt_absolute_time();
+	const hrt_abstime timestamp_sample = hrt_absolute_time();
 	char readbuf[sizeof(_buffer)];
 	int bytes_read = ::read(_file_descriptor, &readbuf[0], sizeof(readbuf));
 
 	/* handle read errors */
 	if (bytes_read < 0) {
-		PX4_DEBUG("read err: %d", bytes_read);
+		PX4_INFO("read err: %d", bytes_read);
 		perf_count(_comms_errors);
 		perf_end(_sample_perf);
 		if (read_elapsed > (_interval * 2)) {
@@ -99,35 +99,45 @@ int TrisonicaMini::collect()
 			return -EAGAIN;
 		}
 	} else if (bytes_read == 0) {
+		usleep(10);
 		return -EAGAIN;
 	}
 
 	_last_read = hrt_absolute_time();
-	PX4_INFO("Collection starting.\n");
+	// for(int i = 0; i < bytes_read; i++){
+	// 	PX4_INFO("%s", &readbuf[i]);
+	// }
+	// PX4_INFO("\n");
 
 	/* loop through read buffer and parse data */
-	// for (int i = 0; i < bytes_read; i++) {
-	// 	if (1 == trisonica_mini_parser(readbuf[i],_buffer,&_buffer_index,&_parse_state,&V_m_s,&direction_deg,&u_m_s,&v_m_s,&w_m_s,&T_C)) {
-	// 		valid = true;
-	// 	}
-	// }
+	// PX4_INFO("parsingthethings:\n");
+	PX4_INFO("\n");
 
-	// if (!valid) {
-	// 	return -EAGAIN;
-	// }
+		for (int i = 0; i < bytes_read; i++) {
+			if (1 == trisonica_mini_parser(readbuf[i],_buffer,&_buffer_index,&_parse_state,&V_m_s,&direction_deg,&u_m_s,&v_m_s,&w_m_s,&T_C)) {
+				valid = true;
+			}
+		}
 
-	// /* create and polulate the topic to be published */
-	// sensor_anemometer_s report{};
-	// report.timestamp = timestamp_sample;
-	// report.V_m_s = V_m_s;
-	// report.direction_deg = direction_deg;
-	// report.u_m_S = u_m_s;
-	// report.v_m_s = v_m_s;
-	// report.w_m_s = w_m_s;
-	// report.T_C = T_C;
+		if (!valid) {
+			return -EAGAIN;
+		}
 
-	// /* publish the sensor readings */
-	// _sensor_anemometer_pub.publish(report);
+	PX4_INFO("VMS:%f\n", V_m_s);
+
+
+	/* create and polulate the topic to be published */
+	sensor_anemometer_s report{};
+	report.timestamp = timestamp_sample;
+	report.v_in_m_s = V_m_s;
+	report.direction_deg = direction_deg;
+	report.u_m_s = u_m_s;
+	report.v_m_s = v_m_s;
+	report.w_m_s = w_m_s;
+	report.t_c = T_C;
+
+	/* publish the sensor readings */
+	_sensor_anemometer_pub.publish(report);
 
 	perf_end(_sample_perf);
 
@@ -203,7 +213,7 @@ void TrisonicaMini::Run()
 	/* perform collection */
 	int ret_col = collect();
 	if(ret_col < 0){
-		PX4_INFO("RETCOL was less than 0\n");
+		PX4_INFO("RETCOL:%d\n", ret_col);
 	}
 
 	/* Possible TODO: do something based on ret_col */

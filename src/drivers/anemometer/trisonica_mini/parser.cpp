@@ -39,6 +39,8 @@
  */
 
 #include "parser.hpp"
+#include <lib/drivers/device/Device.hpp>
+
 
 /*
  * This function parses data from a read buffer one character
@@ -58,28 +60,34 @@
  *	T = Temperature
  *
  */
-int trisonica_mini_parser(char c,char *buffer,int *buffer_index,int *parse_state,float *S,float *D,float *U,float *V,float *W,float *T){
+int trisonica_mini_parser(char c,char *buffer,int *buffer_index,int *parse_state,double *S,double *D,double *U,double *V,double *W,double *T){
 
 	/* If we are lost, look for a start or end character */
+	PX4_INFO("%c", c);
+
 	if ( (*parse_state)<1 ){
 		switch (c) {
 		case START_PACKET:
+			PX4_INFO("sp\n");
 			buffer[0] = c;
 			(*buffer_index) = 1;
 			(*parse_state) = 1;
 			break;
 
 		case END_PACKET:
+			PX4_INFO("ep\n");
 			(*buffer_index)++;
 			(*parse_state) = 1;
 			break;
 
 		default:
+			PX4_INFO("default\n");
 			(*buffer_index)++;
 			break;
 		}
 		return 0;
 	}
+	
 
 	/* If we have gotten to here, we are not lost and are either
 	   indexed at the start, middle, or end of a packet. */
@@ -87,6 +95,7 @@ int trisonica_mini_parser(char c,char *buffer,int *buffer_index,int *parse_state
 
 		/* If we get a start-of-packet, begin storing it. */
 		case START_PACKET:{
+			PX4_INFO("sp2\n");
 			buffer[0] = c;
 			(*buffer_index) = 1;
 			return 0;
@@ -96,7 +105,8 @@ int trisonica_mini_parser(char c,char *buffer,int *buffer_index,int *parse_state
 		/* If we get an end-of-packet character, return the valid buffer. */
 		case END_PACKET:{
 			buffer[*buffer_index] = '\0';
-			int scan_result = sscanf(buffer,"S%f D%f U%f V%f W%f T%f\r",S,D,U,V,W,T);
+			PX4_INFO("scaning:\n");
+			int scan_result = sscanf(buffer,"S%lf D%lf U%lf V%lf W%lf T%lf\r",S,D,U,V,W,T);
 			if (scan_result != 6){
 				(*parse_state) = 0;
 				return 0;
@@ -108,6 +118,7 @@ int trisonica_mini_parser(char c,char *buffer,int *buffer_index,int *parse_state
 
 		/* If it's not a start or end of packet, put it in the buffer to be scanned. */
 		default:{
+			PX4_INFO("dflt\n");
 			buffer[*buffer_index] = c;
 			(*buffer_index)++;
 			return 0;

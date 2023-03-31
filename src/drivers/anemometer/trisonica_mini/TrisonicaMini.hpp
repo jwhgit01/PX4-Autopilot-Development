@@ -64,7 +64,7 @@
 using namespace time_literals;
 
 #define BUFFER_LENGTH 512
-#define READ_INTERVAL 10_ms
+#define READ_INTERVAL 100_ms
 #define BAUD B115200
 
 class TrisonicaMini : public px4::ScheduledWorkItem

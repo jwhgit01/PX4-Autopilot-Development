@@ -55,11 +55,11 @@
 int trisonica_mini_parser(
 	char c,
 	char *buffer,
-	unsigned *buffer_index,
+	int *buffer_index,
 	int *parse_state,
-	float *S,
-	float *D,
-	float *U,
-	float *V,
-	float *W,
-	float *T);
+	double *S,
+	double *D,
+	double *U,
+	double *V,
+	double *W,
+	double *T);
