@@ -1,0 +1,3 @@
+It seems like I am receiving somewhat valid input because I can find the distinct ascii codes for the capitalized and lowercase letters
+but the numbers are not showing up properly as expected. 
+For some reason space is set to bf (or at least that is how px4 info is printing it? This might be something to do with 32 bit vs 64 bit systems and therefore is dependent on me figuring out which one nuttx uses. Or it could also be dependent on the flags set for the tty portion of the code. However, the fact that some of them show up and others do not is perplexing.) 

@@ -1,0 +1,40 @@
+53 bf bf 9f 9f a3 9b 8f 99 bf 51 bf bf 9f 9f a3 9f 9d 9d bf 57 bf bf 9b 00 d9 ab 9f 93 bf 6f bf bf 95 9f a3 97 9d 99 bf 5f bf bf 8d 97 99 a3 9d 9d 9f bf 7d 77 bf bf 9d a3 9f 8d 97 95 91 9b 00 66 67 79 3d 56 fb fb 9f a3 9b 91 93 bf 77 bf bf 9b 9f 93 a3 93 97 97 bf 55 bf bf 9f 9f a3 9d 9b 97 bf 56 fb fb 9f a3 99 9f 9f bf 77 bf bf 9b 9f 97 a3 8d 8f 97 bf 55 bf bf 9f 9f a3 9d 9b 93 bf 00
+S  >  >  0  0  .  x  x  x  >  D  >  >  0  0  .  0  x  x  >  W  >  >  x  x  x  x  x  x  >  x  >  >
+
+
+Second try:
+INFO  [trisonica_mini] bf:V��������w��������
+INFO  [trisonica_mini] srtbuf
+
+INFO  [trisonica_mini] 56 
+INFO  [trisonica_mini] fb 
+INFO  [trisonica_mini] fb 
+INFO  [trisonica_mini] 9f 
+INFO  [trisonica_mini] a3 
+INFO  [trisonica_mini] 9b 
+INFO  [trisonica_mini] 95 
+INFO  [trisonica_mini] 95 
+INFO  [trisonica_mini] bf 
+INFO  [trisonica_mini] 77 
+INFO  [trisonica_mini] bf 
+INFO  [trisonica_mini] bf 
+INFO  [trisonica_mini] 9b 
+INFO  [trisonica_mini] 9f 
+INFO  [trisonica_mini] 99 
+INFO  [trisonica_mini] a3 
+INFO  [trisonica_mini] 8d 
+INFO  [trisonica_mini] 8f 
+INFO  [trisonica_mini] 0 
+INFO  [trisonica_mini] b2 
+INFO  [trisonica_mini] ab 
+INFO  [trisonica_mini] fd 
+INFO  [trisonica_mini] bf 
+INFO  [trisonica_mini] 9f 
+INFO  [trisonica_mini] 9f 
+INFO  [trisonica_mini] a3 
+INFO  [trisonica_mini] 9f 
+INFO  [trisonica_mini] 8f 
+INFO  [trisonica_mini] 97 
+INFO  [trisonica_mini] bf 
+INFO  [trisonica_mini] 0 
+INFO  [trisonica_mini] 

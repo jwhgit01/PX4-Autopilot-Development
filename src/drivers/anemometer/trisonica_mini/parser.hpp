@@ -45,7 +45,7 @@
 #include <stdlib.h>
 
 #define START_PACKET 'S'
-#define END_PACKET '\n'
+#define END_PACKET_NL '\n'
 
 /**
  * Parses serial data and assembles a valid packet containing sensor data.

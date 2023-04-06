@@ -84,9 +84,10 @@ int TrisonicaMini::collect()
 	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
 
 	/* read from the sensor (uart buffer) */
-	const hrt_abstime timestamp_sample = hrt_absolute_time();
+	// const hrt_abstime timestamp_sample = hrt_absolute_time();
 	char readbuf[sizeof(_buffer)];
 	int bytes_read = ::read(_file_descriptor, &readbuf[0], sizeof(readbuf));
+	
 
 	/* handle read errors */
 	if (bytes_read < 0) {
@@ -96,10 +97,12 @@ int TrisonicaMini::collect()
 		if (read_elapsed > (_interval * 2)) {
 			return bytes_read;
 		} else {
+			PX4_INFO("btrderr\n");
 			return -EAGAIN;
 		}
 	} else if (bytes_read == 0) {
 		usleep(10);
+		PX4_INFO("btrd0\n");
 		return -EAGAIN;
 	}
 
@@ -111,35 +114,54 @@ int TrisonicaMini::collect()
 
 	/* loop through read buffer and parse data */
 	// PX4_INFO("parsingthethings:\n");
-	PX4_INFO("\n");
+		PX4_INFO("byts:%d\n", bytes_read);
 
 		for (int i = 0; i < bytes_read; i++) {
-			if (1 == trisonica_mini_parser(readbuf[i],_buffer,&_buffer_index,&_parse_state,&V_m_s,&direction_deg,&u_m_s,&v_m_s,&w_m_s,&T_C)) {
+			int number = trisonica_mini_parser(readbuf[i],_buffer,&_buffer_index,&_parse_state,&V_m_s,&direction_deg,&u_m_s,&v_m_s,&w_m_s,&T_C);
+			// PX4_INFO("triretval:%d\n", number);
+
+			if (number == 1) {
+				PX4_INFO("valid was true\n");
 				valid = true;
+				break;
 			}
 		}
 
 		if (!valid) {
+			PX4_INFO("ntvld\n");
 			return -EAGAIN;
 		}
+	
+		_buffer[_buffer_index + 1] = '\0';
 
-	PX4_INFO("VMS:%f\n", V_m_s);
+		PX4_INFO("srtbuf\n");
+
+		for(int i = 0; i < _buffer_index+1; i++){
+			PX4_INFO("%x ", _buffer[i]);
+		}
+		PX4_INFO("\nbufdone\n");
 
 
-	/* create and polulate the topic to be published */
-	sensor_anemometer_s report{};
-	report.timestamp = timestamp_sample;
-	report.v_in_m_s = V_m_s;
-	report.direction_deg = direction_deg;
-	report.u_m_s = u_m_s;
-	report.v_m_s = v_m_s;
-	report.w_m_s = w_m_s;
-	report.t_c = T_C;
+	// PX4_INFO("VMS:%f\n", V_m_s);
 
-	/* publish the sensor readings */
-	_sensor_anemometer_pub.publish(report);
+
+	// /* create and polulate the topic to be published */
+	// sensor_anemometer_s report{};
+	// report.timestamp = timestamp_sample;
+	// report.v_in_m_s = V_m_s;
+	// report.direction_deg = direction_deg;
+	// report.u_m_s = u_m_s;
+	// report.v_m_s = v_m_s;
+	// report.w_m_s = w_m_s;
+	// report.t_c = T_C;
+
+	// /* publish the sensor readings */
+	// _sensor_anemometer_pub.publish(report);
 
 	perf_end(_sample_perf);
+	_buffer_index = 0;
+	memset(_buffer, 0, sizeof(_buffer));
+
 
 	return PX4_OK;
 }
@@ -173,16 +195,47 @@ int TrisonicaMini::open_serial_port(const speed_t speed)
 
 	/* fill the struct for the new configuration */
 	tcgetattr(_file_descriptor, &uart_config);
-	uart_config.c_iflag &= ~(IGNBRK | BRKINT | ICRNL | INLCR | PARMRK | INPCK | ISTRIP | IXON);
+	// uart_config.c_iflag &= ICRNL;
 
-	/* Clear ONLCR flag (which appends a CR for every LF). */
-	uart_config.c_oflag &= ~ONLCR;
+	// /* Clear ONLCR flag (which appends a CR for every LF). */
+	// uart_config.c_oflag &= ~ONLCR;
 
-	/* No parity, one stop bit. */
-	uart_config.c_cflag &= ~(CSTOPB | PARENB);
+	// /* No parity, one stop bit. */
+	// uart_config.c_cflag &= CSTOPB | PARENB);
 
-	/* No line processing - echo off, echo newline off, canonical mode off, extended input processing off, signal chars off */
-	uart_config.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+ 
+	// clear character size, stop bit count, and parity setting
+	// uart_config.c_cflag &= ~(CSIZE|CSTOPB|PARENB|PARODD);
+	
+	// // No parity, 1 stop bit (8N1), 8 data bits.
+	// uart_config.c_cflag |= CS8;
+
+	// /* No line processing - echo off, echo newline off, canonical mode off, extended input processing off, signal chars off */
+	// uart_config.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN | ISIG);
+
+
+		// uart_config.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
+		
+		// tcflush(_file_descriptor, TCIFLUSH);
+	
+
+	  uart_config.c_cflag |= (CLOCAL | CREAD);
+  uart_config.c_cflag &= ~CSIZE;
+  uart_config.c_cflag |= CS8;         /* 8-bit characters */
+  uart_config.c_cflag &= ~PARENB;     /* no parity bit */
+  uart_config.c_cflag &= ~CSTOPB;     /* only need 1 stop bit */
+
+  uart_config.c_iflag |= ICRNL;       /* CR is a line terminator */
+  uart_config.c_iflag |= IGNPAR;      // Ignore parity errors
+
+  // no flow control
+  uart_config.c_cflag &= ~CRTSCTS;
+  uart_config.c_iflag &= ~(IXON | IXOFF | IXANY);
+
+  // canonical input & output
+  uart_config.c_lflag |= ICANON;
+  uart_config.c_lflag &= ~(ECHO | ECHOE | ISIG);
+  uart_config.c_oflag |= OPOST;
 
 	/* set baud rate and check for errors*/
 	if ((termios_state = cfsetispeed(&uart_config, speed)) < 0) {

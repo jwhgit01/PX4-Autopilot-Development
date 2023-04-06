@@ -41,7 +41,6 @@
 #include "parser.hpp"
 #include <lib/drivers/device/Device.hpp>
 
-
 /*
  * This function parses data from a read buffer one character
  * at a time and returns a valid packet once assembled.
@@ -60,13 +59,16 @@
  *	T = Temperature
  *
  */
-int trisonica_mini_parser(char c,char *buffer,int *buffer_index,int *parse_state,double *S,double *D,double *U,double *V,double *W,double *T){
+int trisonica_mini_parser(char c, char *buffer, int *buffer_index, int *parse_state, double *S, double *D, double *U, double *V, double *W, double *T)
+{
 
 	/* If we are lost, look for a start or end character */
-	PX4_INFO("%c", c);
+	// PX4_INFO("%c", c);
 
-	if ( (*parse_state)<1 ){
-		switch (c) {
+	if ((*parse_state) < 1)
+	{
+		switch (c)
+		{
 		case START_PACKET:
 			PX4_INFO("sp\n");
 			buffer[0] = c;
@@ -74,56 +76,81 @@ int trisonica_mini_parser(char c,char *buffer,int *buffer_index,int *parse_state
 			(*parse_state) = 1;
 			break;
 
-		case END_PACKET:
+		case END_PACKET_NL:
 			PX4_INFO("ep\n");
-			(*buffer_index)++;
+			(*buffer_index) = 0;
 			(*parse_state) = 1;
 			break;
 
 		default:
-			PX4_INFO("default\n");
+			// PX4_INFO("default\n");
 			(*buffer_index)++;
 			break;
 		}
 		return 0;
 	}
-	
 
 	/* If we have gotten to here, we are not lost and are either
 	   indexed at the start, middle, or end of a packet. */
-	switch (c) {
+	switch (c)
+	{
 
-		/* If we get a start-of-packet, begin storing it. */
-		case START_PACKET:{
-			PX4_INFO("sp2\n");
-			buffer[0] = c;
-			(*buffer_index) = 1;
-			return 0;
-			break;
-		}
+	/* If we get a start-of-packet, begin storing it. */
+	case START_PACKET:
+	{
+		if (*buffer_index > 1)
+		{
+			PX4_INFO("stpcktbad\n");
+			PX4_INFO("bf:%s", buffer);
+			char leftover[512];
 
-		/* If we get an end-of-packet character, return the valid buffer. */
-		case END_PACKET:{
-			buffer[*buffer_index] = '\0';
-			PX4_INFO("scaning:\n");
-			int scan_result = sscanf(buffer,"S%lf D%lf U%lf V%lf W%lf T%lf\r",S,D,U,V,W,T);
-			if (scan_result != 6){
+
+			int scan_result = sscanf(buffer, "S%lf D%lf U%lf V%lf W%lf T%lf %s\n", S, D, U, V, W, T, leftover);
+			if (scan_result != 7)
+			{
 				(*parse_state) = 0;
+				PX4_INFO("didnotget7\n");
 				return 0;
 			}
-			/* If the result is good, reset the index to zero and return OK */
-			(*buffer_index) = 0;
-			return 1;
-			break;}
 
-		/* If it's not a start or end of packet, put it in the buffer to be scanned. */
-		default:{
-			PX4_INFO("dflt\n");
-			buffer[*buffer_index] = c;
-			(*buffer_index)++;
-			return 0;
+			return 1;
 			break;
 		}
+		PX4_INFO("sp2\n");
+		buffer[0] = c;
+		(*buffer_index) = 1;
+		return 0;
+		break;
 	}
 
+	/* If we get an end-of-packet character, return the valid buffer. */
+	case END_PACKET_NL:
+	{
+		PX4_INFO("fndendpckt\n");
+		buffer[*buffer_index] = '\0';
+		// int scan_result = sscanf(buffer,"S%lf D%lf U%lf V%lf W%lf T%lf\r",S,D,U,V,W,T);
+		// if (scan_result != 6){
+		// 	(*parse_state) = 0;
+		// 	PX4_INFO("didnotget6\n");
+		// 	return 0;
+		// }
+		/* If the result is good, reset the index to zero and return OK */
+		(*buffer_index) = 0;
+		(*parse_state) = 0;
+		PX4_INFO("finished:%s\n", buffer);
+
+		return 1;
+		break;
+	}
+
+	/* If it's not a start or end of packet, put it in the buffer to be scanned. */
+	default:
+	{
+		// PX4_INFO("dflt\n");
+		buffer[*buffer_index] = c;
+		(*buffer_index)++;
+		return 0;
+		break;
+	}
+	}
 }

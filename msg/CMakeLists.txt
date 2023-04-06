@@ -141,6 +141,7 @@ set(msg_files
 	satellite_info.msg
 	sensor_accel.msg
 	sensor_accel_fifo.msg
+	sensor_anemometer.msg
 	sensor_baro.msg
 	sensor_combined.msg
 	sensor_correction.msg
