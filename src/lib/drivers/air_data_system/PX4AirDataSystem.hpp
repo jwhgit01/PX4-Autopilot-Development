@@ -44,9 +44,6 @@ public:
 	PX4AirDataSystem(const uint32_t device_id, const float_t device_position[3] = {0});
 	~PX4AirDataSystem();
 
-	// Set the MAV_AIR_DATA_SYSTEM type (VANED, SONIC, PROBE)
-	void set_air_data_system_type(uint8_t air_data_system_type) { _airdata_pub.get().type = air_data_system_type; };
-
 	void set_device_id(const uint32_t device_id) { _airdata_pub.get().device_id = device_id; };
 	void set_device_type(const uint8_t device_type);
 

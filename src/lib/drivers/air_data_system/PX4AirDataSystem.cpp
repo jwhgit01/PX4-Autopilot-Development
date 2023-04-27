@@ -39,7 +39,6 @@ PX4AirDataSystem::PX4AirDataSystem(const uint32_t device_id, const float_t devic
 {
 	set_device_id(device_id);
 	set_position(device_position);
-	set_airdata_type(airdata_s::MAV_AIR_DATA_SYSTEM_VANED); // Default to type VANED
 }
 
 PX4AirDataSystem::~PX4AirDataSystem()
