@@ -46,8 +46,16 @@
 //#include <lib/drivers/rangefinder/PX4Rangefinder.hpp>
 #include <drivers/drv_hrt.h>
 #include <drivers/device/device.h>
+#include <lib/drivers/device/Device.hpp>
 #include <lib/parameters/param.h>
 #include <lib/perf/perf_counter.h>
+#include <inttypes.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <termios.h>
+#include <unistd.h>
+
+using namespace time_literals;
 
 class TrisonicaMini : public px4::ScheduledWorkItem
 {
@@ -65,6 +73,7 @@ private:
 	void stop();
 	void Run() override;
 	int collect();
+	int open_serial_port();
 
 	/* Serial data parser */
 	enum PARSE_STATE {
@@ -72,8 +81,8 @@ private:
 		PARSE_STATE_SYNC,
 		PARSE_STATE_GOT_S
 	};
-	int assemble(char c, char *packetbuf, unsigned *packetbuf_index, enum PARSE_STATE *state)
-	int parse(char c, char *packetbuf, unsigned *packetbuf_index, enum PARSE_STATE *state, float *dist);
+	//int assemble(char c, char *packetbuf, unsigned *packetbuf_index, enum PARSE_STATE *state);
+	//int parse(char c, char *packetbuf, unsigned *packetbuf_index, enum PARSE_STATE *state, float *dist);
 
 	// PX4Rangefinder _px4_rangefinder;
 

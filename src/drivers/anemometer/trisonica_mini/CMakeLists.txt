@@ -39,7 +39,6 @@ px4_add_module(
 		trisonica_mini.cpp
 		trisonica_mini.hpp
 		trisonica_mini_main.cpp
-		parser.cpp
 	DEPENDS
 		# drivers_rangefinder
 		px4_work_queue
