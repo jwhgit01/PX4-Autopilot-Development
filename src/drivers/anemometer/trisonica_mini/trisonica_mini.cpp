@@ -95,7 +95,7 @@ int TrisonicaMini::collect() {
 
 	/* read from the sensor (uart buffer) */
 	//const hrt_abstime timestamp_sample = hrt_absolute_time();
-	int bytes_read = ::read(_fd, &readbuf[0], readlen);
+	int bytes_read = ::read(_fd, &readbuf[_readbuf_idx], readlen);
 	if (bytes_read < 0) {
 		PX4_DEBUG("read err: %d", bytes_read);
 		//perf_count(_comms_errors);
@@ -128,7 +128,7 @@ int TrisonicaMini::collect() {
 
 	/* assemble a packet of raw bytes
 	for (size_t i = 0; i < bytes_read; i++) {
-		if (OK == TrisonicaMini::assemble(readbuf[i], _packet, &_packet_index, &_parse_state)) {
+		if (OK == TrisonicaMini::assemble(readbuf[i], &_readbuf_idx, _packet, &_packet_index, &_parse_state)) {
 			valid = true;
 		}
 	}

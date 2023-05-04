@@ -81,7 +81,7 @@ private:
 		PARSE_STATE_SYNC,
 		PARSE_STATE_GOT_S
 	};
-	//int assemble(char c, char *packetbuf, unsigned *packetbuf_index, enum PARSE_STATE *state);
+	//int assemble(char c, unsigned *_readbuf_index, char *packetbuf, unsigned *packetbuf_index, enum PARSE_STATE *state);
 	//int parse(char c, char *packetbuf, unsigned *packetbuf_index, enum PARSE_STATE *state, float *dist);
 
 	// PX4Rangefinder _px4_rangefinder;
@@ -91,6 +91,7 @@ private:
 	int _interval{200_ms};
 	int	_fd{-1};
 	char _packet[256] {};
+	unsigned _readbuf_idx = 0;
 	unsigned _packet_idx = 0;
 	enum PARSE_STATE _parse_state {PARSE_STATE_UNSYNC};
 	hrt_abstime _last_read{0};
