@@ -145,6 +145,10 @@ int TrisonicaMini::collect() {
 
 	//perf_end(_sample_perf);
 
+	/* 
+	 * Here, we will publish to two topics: sensor_anemometer and sensor_pth
+	 */
+
 	return PX4_OK;
 }
 

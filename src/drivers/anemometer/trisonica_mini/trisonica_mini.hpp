@@ -43,12 +43,17 @@
 
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
-//#include <lib/drivers/rangefinder/PX4Rangefinder.hpp>
 #include <drivers/drv_hrt.h>
 #include <drivers/device/device.h>
 #include <lib/drivers/device/Device.hpp>
 #include <lib/parameters/param.h>
 #include <lib/perf/perf_counter.h>
+
+#include <uORB/Publication.hpp>
+#include <uORB/PublicationMulti.hpp>
+#include <uORB/topics/sensor_anemometer.h>
+#include <uORB/topics/sensor_pth.h>
+
 #include <inttypes.h>
 #include <fcntl.h>
 #include <poll.h>
@@ -100,5 +105,8 @@ private:
 
 	perf_counter_t _sample_perf;
 	perf_counter_t _comms_errors;
+
+	uORB::PublicationMulti<sensor_anemometer_s> _sensor_anemometer_pub{ORB_ID(sensor_anemometer)};
+	uORB::PublicationMulti<sensor_pth_s> _sensor_pth_pub{ORB_ID(sensor_pth)};
 
 };
