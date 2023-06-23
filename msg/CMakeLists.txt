@@ -47,7 +47,6 @@ set(msg_files
 	actuator_servos_trim.msg
 	actuator_test.msg
 	adc_report.msg
-	airdata.msg
 	airspeed.msg
 	airspeed_validated.msg
 	airspeed_wind.msg
@@ -140,6 +139,7 @@ set(msg_files
 	rtl_time_estimate.msg
 	safety.msg
 	satellite_info.msg
+	sensor_airdata.msg
 	sensor_accel.msg
 	sensor_accel_fifo.msg
 	sensor_baro.msg

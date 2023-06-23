@@ -168,6 +168,9 @@ px4_add_module(
 		sensors/hygrometer.cpp
 		sensors/safety_button.cpp
 
+		# Custom
+		sensors/airdata.cpp
+
 	MODULE_CONFIG
 		module.yaml
 

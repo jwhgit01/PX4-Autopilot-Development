@@ -35,43 +35,37 @@
 
 #include <lib/drivers/device/Device.hpp>
 
-PX4AirDataSystem::PX4AirDataSystem(const uint32_t device_id, const float_t device_position[3])
+PX4AirDataSystem::PX4AirDataSystem(const uint32_t device_id)
 {
 	set_device_id(device_id);
-	set_position(device_position);
 }
 
 PX4AirDataSystem::~PX4AirDataSystem()
 {
-	_airdata_pub.unadvertise();
+	_sensor_airdata_pub.unadvertise();
 }
 
 void PX4AirDataSystem::set_device_type(uint8_t device_type)
 {
 	// current DeviceStructure
 	union device::Device::DeviceId device_id;
-	device_id.devid = _airdata_pub.get().device_id;
+	device_id.devid = _sensor_airdata_pub.get().device_id;
 
 	// update to new device type
 	device_id.devid_s.devtype = device_type;
 
 	// copy back to report
-	_airdata_pub.get().device_id = device_id.devid;
-}
-
-void PX4AirDataSystem::set_position(const float_t device_position[3])
-{
-	_airdata_pub.get().position = device_position;
+	_sensor_airdata_pub.get().device_id = device_id.devid;
 }
 
 void PX4AirDataSystem::update(const hrt_abstime &timestamp_sample, float V, float beta, float alpha)
 {
-	airdata_s &report = _airdata_pub.get();
+	snesor_air_data_s &report = _sensor_airdata_pub.get();
 
 	report.timestamp = timestamp_sample;
 	report.airspeed_m_s = V;
-	report.angle_of_sideslip_rad = beta;
+	report.flank_angle_rad = beta;
 	report.angle_of_attack_rad = alpha;
 
-	_airdata_pub.update();
+	_sensor_airdata_pub.update();
 }

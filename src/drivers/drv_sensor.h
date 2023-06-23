@@ -221,4 +221,7 @@
 
 #define DRV_DEVTYPE_UNUSED		0xff
 
+// Custom Sensors
+#define DRV_AIRDATA_DEVTYPE_NSL_ADU 0x4F
+
 #endif /* _DRV_SENSOR_H */

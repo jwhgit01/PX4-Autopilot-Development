@@ -31,10 +31,11 @@
  *
  ****************************************************************************/
 
-#include "nsl_adu.hpp"
-
+#include <board_config.h>
 #include <px4_platform_common/getopt.h>
 #include <px4_platform_common/module.h>
+
+#include "nsl_adu.hpp"
 
 /**
  * @brief Print the usage of the driver
@@ -49,12 +50,16 @@ I2C bus driver for NSL vaned air data unit
 Setup/usage information: TODO (GitHub)
 )DESCR_STR");
 	PRINT_MODULE_USAGE_NAME("nsl_adu", "driver");
+	PRINT_MODULE_USAGE_SUBCATEGORY("air_data_system");
 	PRINT_MODULE_USAGE_COMMAND("start");
 	PRINT_MODULE_USAGE_PARAMS_I2C_SPI_DRIVER(true, false);
+	PRINT_MODULE_USAGE_PARAMS_I2C_ADDRESS(ADU_ADDRESS);
 	PRINT_MODULE_USAGE_DEFAULT_COMMANDS();
 }
 
 
+/* I should keep this... Need to have multiple ADU's...
+...
 I2CSPIDriverBase *NSL_ADU::instantiate( const BusCLIArguments &cli,
 					const BusInstanceIterator &iterator,
 					int runtime_instance) {
@@ -78,7 +83,6 @@ I2CSPIDriverBase *NSL_ADU::instantiate( const BusCLIArguments &cli,
 }
 
 
-
 /**
  * @brief Driver main function
  */
@@ -87,9 +91,10 @@ extern "C" __EXPORT int nsl_adu_main(int argc, char *argv[]) {
 	using ThisDriver = NSL_ADU;
 	BusCLIArguments cli{true, false};
 	cli.default_i2c_frequency = 400000;
+	cli.i2c_address = ADU_ADDRESS;
 
-	const char *verb = cli.parseDefaultArguments(argc, argv);
-
+	// const char *verb = cli.parseDefaultArguments(argc, argv);
+	const char *verb = cli.optArg();
 	if (!verb) {
 		ThisDriver::print_usage();
 		return -1;

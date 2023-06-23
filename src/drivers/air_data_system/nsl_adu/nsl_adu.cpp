@@ -42,16 +42,14 @@
 
 #include "nsl_adu.hpp"
 
-/**
- * Debugging build of this file
- */
-//#define DEBUG_BUILD
-
-
-NSL_ADU::NSL_ADU(I2CSPIBusOption bus_option, const int bus, int bus_frequency, int address) :
-	I2C(DRV_AIRDATA_DEVTYPE_NSL_ADU, MODULE_NAME, bus, address, bus_frequency),
-	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
-	_px4_airdata(get_device_id(), ORB_PRIO_DEFAULT) {
+//NSL_ADU::NSL_ADU(I2CSPIBusOption bus_option, const int bus, int bus_frequency, int address) :
+//	I2C(DRV_AIRDATA_DEVTYPE_NSL_ADU, MODULE_NAME, bus, address, bus_frequency),
+//	I2CSPIDriver(MODULE_NAME, px4::device_bus_to_wq(get_device_id()), bus_option, bus),
+//	_px4_air_data_system(0, float [3] {0}) {
+//}
+NSL_ADU::NSL_ADU(const I2CSPIDriverConfig &config) :
+	I2C(config),
+	I2CSPIDriver(config) {
 }
 
 NSL_ADU::~NSL_ADU() {
@@ -60,10 +58,8 @@ NSL_ADU::~NSL_ADU() {
 }
 
 void NSL_ADU::start() {
-	// Reset the report ring and state machine.
-	_collect_phase = false;
-
 	// Schedule a cycle to start things.
+	_collect_phase = false;
 	ScheduleDelayed(_interval);
 }
 
@@ -79,8 +75,8 @@ int NSL_ADU::init() {
  * @brief 	Process the requested bytes
  * @details	Process the incoming bytes after we have requested a read.
  * 			The bytes are mapped to floats of V, alpha, beta, and then
- * 			are used to update a PX4airdata object, _px4_airdata object,
- * 			defined in ~/src/lib/drivers/airdata/
+ * 			are used to update a PX4airdata object, PX4AirDataSystem object,
+ * 			defined in ~/src/lib/drivers/PX4AirDataSystem/
  */
 int NSL_ADU::collect() {
 
@@ -92,38 +88,35 @@ int NSL_ADU::collect() {
 	//
 	// Get timestamp
 	//
-	_val = {};
+	uint8_t _val[_num_bytes] {};
 	const hrt_abstime timestamp_sample = hrt_absolute_time();
 	//
 	// trasfer NUM_BYTES bytes into _val and check for errors
 	//
-	if (transfer(nullptr, 0, &_val[0], NUM_BYTES) < 0) {
+	if (transfer(nullptr, 0, &_val[0], _num_bytes) < 0) {
 		perf_count(_comms_errors);
 		perf_end(_sample_perf);
 		return PX4_ERROR;
 	}
 
 	/**
-	 * @section Parse the data, then update
-	 * @details The 8 bytes sent by the adu are structured as follows
-	 * 			bytes 1-2 	airspeed (m_s) = raw/
-	 *  		bytes 3-4	alpha    (deg) = raw/36000
-	 *  		bytes 5-6	beta     (deg) = raw/36000
+	 * @section Re-assemble the bytes into floats and update UORB topic
 	 */
-	//
-	// Each measurement is a big-endian unsigned 16-bit integer
-	//
-	int alpha_raw = (val[0] << 8) | val[1];
-	int beta_raw = (val[2] << 8) | val[3];
-	//
-	// Convert the ints to floats of propper units
-	//
-	float alpha_deg = (float)alpha_raw/(float)ab_scale - 180.0f;
-	float beta_deg = (float)beta_raw/(float)ab_scale - 180.0f;
-	//
-	// Update the PX4airdata object to be published (TODO: airspeed)
-	//
-	_px4_airdata.update(timestamp_sample, 0.0f, alpha_deg, beta_deg);
+	float beta_rad;
+	float alpha_rad;
+
+	// Copy the bytes into the float variables using memcpy and reinterpret_cast
+	if (sizeof(float) * 2 <= _num_bytes) {
+    		std::memcpy(&beta_rad, reinterpret_cast<const float*>(_val), sizeof(float));
+    		std::memcpy(&alpha_rad, reinterpret_cast<const float*>(_val + sizeof(float)), sizeof(float));
+	} else {
+    		perf_count(_comms_errors);
+		perf_end(_sample_perf);
+		return PX4_ERROR;
+	}
+
+	// Update the PX4airdata object to be published (TODO: sub to airspeed)
+	_px4_air_data_system.update(timestamp_sample, 0.0f, beta_rad, alpha_rad);
 
 	perf_end(_sample_perf);
 

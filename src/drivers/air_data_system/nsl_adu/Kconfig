@@ -1,4 +1,4 @@
-menuconfig DRIVERS_AIR_DATA_SYSTEM_NSL_ADU
+menuconfig DRIVERS_AIR_DATA_SYSTEM
 	bool "nsl_adu"
 	default y
 	---help---

@@ -38,43 +38,47 @@
 
 #pragma once
 
+#include <px4_platform_common/module_params.h>
 #include <px4_platform_common/px4_config.h>
+#include <px4_platform_common/defines.h>
 #include <px4_platform_common/i2c_spi_buses.h>
-#include <drivers/airdata/PX4airdata.hpp>
 #include <drivers/device/i2c.h>
-#include <drivers/drv_hrt.h>
 #include <lib/perf/perf_counter.h>
+#include <drivers/air_data_system/PX4AirDataSystem.hpp>
+// OR:
+//#include <uORB/Publication.hpp>
+//#include <uORB/PublicationMulti.hpp>
+//#include <uORB/topics/sensor_airdata.h>
+#include <drivers/drv_hrt.h>
+#include <cstdint>
 
 /**
  * Configuration Constants
  */
-#define ADU_ADDRESS	0x4F
-#define NUM_BYTES 	8
-#define ADDR_READ 	0x00
-#define CONVERSION_INTERVAL 500 // Used to be 1000
-
-/**
- * integer data scalings (these must be the same as defined on the ADU Teensy board)
- */
-const int ab_scale = 180;
+static constexpr uint8_t ADU_ADDRESS = 0x4F;
+static constexpr uint8_t ADDR_READ = 0x00;
+static constexpr unsigned MEAS_RATE = 200; // Hz
+static constexpr int64_t CONVERSION_INTERVAL = (1000000 / MEAS_RATE); /* microseconds */
 
 class NSL_ADU : public device::I2C, public I2CSPIDriver<NSL_ADU>
 {
 public:
-	NSL_ADU(I2CSPIBusOption bus_option,
-		const int bus,
-		int bus_frequency,
-		int address = ADU_ADDRESS);
+	NSL_ADU(const I2CSPIDriverConfig &config);
+	//NSL_ADU(I2CSPIBusOption bus_option,
+	//	const int bus,
+	//	int bus_frequency,
+	//	int address = ADU_ADDRESS);
 
-	~NSL_ADU() override;
+	~NSL_ADU() override = default;
 
-	static I2CSPIDriverBase *instantiate(const BusCLIArguments &cli,
-					     const BusInstanceIterator &iterator,
-					     int runtime_instance);
+	//static I2CSPIDriverBase *instantiate(const BusCLIArguments &cli,
+	//				     const BusInstanceIterator &iterator,
+	//				     int runtime_instance);
 
 	static void print_usage();
 
 	int init() override;
+
 	void print_status() override;
 
 	void RunImpl();
@@ -93,12 +97,13 @@ private:
 	 */
 	int probe_address(uint8_t address);
 
-	PX4airdata _px4_airdata;
+	PX4AirDataSystem _px4_air_data_system;
+	// OR uORB::PublicationMulti<sensor_airdata_s> _rpm_pub{ORB_ID(sensor_airdata)};
 
 	uint32_t _interval{CONVERSION_INTERVAL};
 
 	bool _collect_phase{false};
-	uint8_t _val[NUM_BYTES] {};
+	static constexpr int _num_bytes = 8;
 
 	perf_counter_t _comms_errors{perf_alloc(PC_COUNT, MODULE_NAME": com_err")};
 	perf_counter_t _sample_perf{perf_alloc(PC_ELAPSED,  MODULE_NAME": read")};

@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- *   Copyright (c) 2019 PX4 Development Team. All rights reserved.
+ *   Copyright (c) 2020 PX4 Development Team. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,26 +31,49 @@
  *
  ****************************************************************************/
 
+/**
+ * @author Jeremy Hopwood <jeremyhopwood@vt.edu>
+ */
+
 #pragma once
 
-#include <drivers/drv_hrt.h>
-#include <lib/conversion/rotation.h>
-#include <uORB/PublicationMulti.hpp>
+#include "sensor_bridge.hpp"
 #include <uORB/topics/sensor_airdata.h>
+#include <drivers/air_data_system/PX4AirDataSystem.hpp>
 
-class PX4AirDataSystem
+#include <uavcan/equipment/air_data/TrueAirspeed.hpp>
+#include <uavcan/equipment/air_data/FlowAngleData.hpp>
+
+class UavcanAirdataBridge : public UavcanSensorBridgeBase
 {
 public:
-	PX4AirDataSystem(const uint32_t device_id);
-	~PX4AirDataSystem();
+	static const char *const NAME;
 
-	void set_device_id(const uint32_t device_id) { _sensor_airdata_pub.get().device_id = device_id; };
-	void set_device_type(const uint8_t device_type);
+	UavcanAirdataBridge(uavcan::INode &node);
 
-	void update(const hrt_abstime &timestamp_sample, float V, float beta, float alpha);
+	const char *get_name() const override { return NAME; }
 
-	int get_instance() { return _sensor_airdata_pub.get_instance(); };
+	int init() override;
 
 private:
-	uORB::PublicationMultiData<sensor_airdata_s> _sensor_airdata_pub{ORB_ID(sensor_airdata)};
+
+	void airspeed_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::TrueAirspeed> &msg);
+	void flowangle_sub_cb(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::FlowAngleData> &msg);
+
+	int init_driver(uavcan_bridge::Channel *channel) override;
+
+	typedef uavcan::MethodBinder < UavcanAirdataBridge *,
+		void (UavcanAirdataBridge::*)
+		(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::TrueAirspeed> &) >
+		AirspeedCbBinder;
+
+	typedef uavcan::MethodBinder < UavcanAirdataBridge *,
+		void (UavcanAirdataBridge::*)
+		(const uavcan::ReceivedDataStructure<uavcan::equipment::air_data::FlowAngleData> &) >
+		FlowAngleCbBinder;
+
+	uavcan::Subscriber<uavcan::equipment::air_data::TrueAirspeed, AirspeedCbBinder> _sub_airspeed_data;
+	uavcan::Subscriber<uavcan::equipment::air_data::FlowAngleData, FlowAngleCbBinder> _sub_flowangle_data;
+
+	float _last_airspeed_m_s{0.0f};
 };
