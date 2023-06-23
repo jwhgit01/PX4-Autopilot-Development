@@ -34,8 +34,8 @@ px4_add_module(
 	MODULE drivers__air_data_system__nsl_adu
 	MAIN nsl_adu
 	SRCS
-		nsl_adu.cpp
-		nsl_adu_main.cpp
+		#nsl_adu.cpp
+		#nsl_adu_main.cpp
 	DEPENDS
 		#drivers__air_data_system
 		px4_work_queue
