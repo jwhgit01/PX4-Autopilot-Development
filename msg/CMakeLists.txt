@@ -141,6 +141,7 @@ set(msg_files
 	satellite_info.msg
 	sensor_accel.msg
 	sensor_accel_fifo.msg
+	sensor_anemometer.msg #Anemometer relative wind velocity messages
 	sensor_baro.msg
 	sensor_combined.msg
 	sensor_correction.msg
@@ -152,6 +153,7 @@ set(msg_files
 	sensor_hygrometer.msg
 	sensor_mag.msg
 	sensor_preflight_mag.msg
+	sensor_pth.msg #Anemometer PTHAd messages
 	sensor_selection.msg
 	sensors_status_imu.msg
 	sensors_status.msg

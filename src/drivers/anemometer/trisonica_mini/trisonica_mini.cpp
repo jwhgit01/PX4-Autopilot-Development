@@ -79,6 +79,52 @@ int TrisonicaMini::parse(TODO){
 }
 */
 
+int TrisonicaMini::parse(const char* packet_data)
+{
+	//Read and assign values to the data (!!!!!!FIX UNITS!!!!!!!!!)
+	float windspeed_mps, wind_direction_deg, U_vel_mps, V_vel_mps, W_vel_mps, temperature_celcius, humidiy_precent, pressure_Pa;
+	double air_density_kgpm3;
+	int scan_result = sscanf(packet_data,
+	"S: %f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%lf\n\n",
+				&windspeed_mps,
+				&wind_direction_deg,
+				&U_vel_mps,
+				&V_vel_mps,
+				&W_vel_mps,
+				&temperature_celcius,
+				&humidiy_precent,
+				&pressure_Pa,
+				&air_density_kgpm3);
+	//Check the scan result. If something is wrong at this point, try again.
+	if (scan_result != 9) {
+		PX4_ERR("Invalid string format from Anemometer: %d tokens read", scan_result);
+		return 0;
+	}
+
+	/*
+	// print the good packet
+	#ifdef PRINT_PACKET
+		PX4_INFO("%s", packet_data); //Print the packet
+	#endif
+	*/
+
+	//Assign values to the "sensor_anemometer" message
+
+	
+	//uint devID = Convert.ToUInt32(_fd);
+	anem_uvw.device_id = (uint) 0;
+	anem_uvw.timestamp = timestamp_us;
+	anem_uvw.u = U_vel_mps;
+	anem_uvw.v = V_vel_mps;
+	anem_uvw.w = W_vel_mps;
+	//Publish
+	orb_publish(ORB_ID(sensor_anemometer), sensor_anemometer_pub, &anem_uvw);
+
+	// Successfully read a packet of data and published it! Keep reading!
+	return 1;
+
+}
+
 int TrisonicaMini::collect() {
 
 	PX4_INFO("Starting collection...\n");
@@ -113,10 +159,73 @@ int TrisonicaMini::collect() {
 	}
 
 	PX4_INFO("bytes read:\n");
-	for (int i = 0; i < bytes_read; i++) {
-		PX4_INFO("%x ",readbuf[i]);
+
+	for (int i = _readbuf_idx; i < bytes_read; i++)
+	{
+		//Look for the start of the packet
+		if (_assemble_packet == 0 && readbuf[i] == _starting_char)
+		{
+			_packet[_packet_idx++] = readbuf[i];
+			timestamp_us = hrt_absolute_time(); //Get the data timestamp in microseconds
+			_assemble_packet = 1;
+		}
+
+		//Assemble data into packet when a start character is found
+		if (_assemble_packet == 1)
+		{
+			// Copy all the subsequent data into the packet
+			_packet[_packet_idx++] = readbuf[i];
+			//If the ending character show up, finish reading the packet
+			if (readbuf[i] == _ending_char)
+			{
+				_packet[_packet_idx] = '\0'; //Null terminate the packet, that is the standard
+				_assemble_packet = 0; //Stop assembling packet
+
+				//****DO SOMETHING WITH THE DATA****//
+
+				//Advance the read index two steps if there are two null characters
+				_readbuf_idx++;
+				return _packet_idx; //return size of packet
+				//PX4_INFO("Found LF: %x at %d",readbuf[i], i);
+			}
+
+			//If we receive another start character (corrupted data!)
+			else if (readbuf[i] == _starting_char)
+			{
+				_packet_idx = 0; //Start over
+				_packet[_packet_idx++] = readbuf[i];
+				timestamp_us = hrt_absolute_time(); //Get the data timestamp in microseconds
+				_assemble_packet = 1;
+			}
+
+			//If we hit a null ('\0') character after starting (corrupt data!)
+			else if	(readbuf[i] == '\0')
+			{
+				//Reset everything
+				_readbuf_idx = 0;
+				_packet_idx = 0;
+				bytes_read = 0;
+				_assemble_packet = 0;
+			}
+
+			else if (_packet_idx > 200)
+			{
+				PX4_ERR("Buffer overrun!");
+				_overrun_count++; //Increase the counter
+				_packet[_packet_idx] = '\0'; //Terminate with a null
+				if (_overrun_count > 10)
+				{
+					return -1; //Exit out, something is wrong
+				}
+				return 0; //Try again
+			}
+		}
 	}
 
+	//No more data to read (end of buffer reached)
+	_readbuf_idx = 0; //Reset the read index to 0
+	bytes_read = 0;
+	PX4_INFO("End of data \n");
 
 	/* we have made a successful read. make note of the time and initialize. */
 	//_last_read = hrt_absolute_time();
@@ -145,7 +254,7 @@ int TrisonicaMini::collect() {
 
 	//perf_end(_sample_perf);
 
-	/* 
+	/*
 	 * Here, we will publish to two topics: sensor_anemometer and sensor_pth
 	 */
 
