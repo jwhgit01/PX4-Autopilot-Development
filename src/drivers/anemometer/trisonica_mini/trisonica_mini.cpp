@@ -69,56 +69,60 @@ int TrisonicaMini::init() {
 	return PX4_OK;
 }
 
-/*
-int TrisonicaMini::assemble(char c, char *parserbuf, unsigned *parserbuf_index, enum PARSE_STATE *state){
-	TODO
-}
-
-int TrisonicaMini::parse(TODO){
-	TODO
-}
-*/
-
 int TrisonicaMini::parse(const char* packet_data)
 {
 	//Read and assign values to the data (!!!!!!FIX UNITS!!!!!!!!!)
-	float windspeed_mps, wind_direction_deg, U_vel_mps, V_vel_mps, W_vel_mps, temperature_celcius, humidiy_precent, pressure_Pa;
-	double air_density_kgpm3;
+	float windspeed_mps, wind_direction_deg, U_vel_mps, V_vel_mps, W_vel_mps,
+	Temperature_celcius, Humidiy_precent, Pressure_Pa, Air_density_kgpm3;
 	int scan_result = sscanf(packet_data,
-	"S: %f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%lf\n\n",
+	"S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n\n",
 				&windspeed_mps,
 				&wind_direction_deg,
 				&U_vel_mps,
 				&V_vel_mps,
 				&W_vel_mps,
-				&temperature_celcius,
-				&humidiy_precent,
-				&pressure_Pa,
-				&air_density_kgpm3);
+				&Temperature_celcius,
+				&Humidiy_precent,
+				&Pressure_Pa,
+				&Air_density_kgpm3);
 	//Check the scan result. If something is wrong at this point, try again.
 	if (scan_result != 9) {
 		PX4_ERR("Invalid string format from Anemometer: %d tokens read", scan_result);
 		return 0;
 	}
 
-	/*
+	//PX4_INFO("Time: %f\n", (double) timestamp_us/1000000);
+
+/*
+	PX4_INFO("S:%f, D:%f, U:%f, V:%f, W:%f, T:%f, H:%f, P:%f, AD:%f\n",
+	 (double) windspeed_mps, (double) wind_direction_deg, (double) U_vel_mps,
+	 (double) V_vel_mps, (double) W_vel_mps, (double) Temperature_celcius,
+	 (double) Humidiy_precent, (double) Pressure_Pa, (double) Air_density_kgpm3);
+
+	 PX4_INFO("AD:%f\n", (double) Air_density_kgpm3);
+*/
 	// print the good packet
 	#ifdef PRINT_PACKET
 		PX4_INFO("%s", packet_data); //Print the packet
 	#endif
-	*/
+
 
 	//Assign values to the "sensor_anemometer" message
+	sensor_anemometer_s sensor_anemometer{};
+	sensor_anemometer.timestamp = timestamp_us;
+	sensor_anemometer.u = U_vel_mps;
+	sensor_anemometer.v = V_vel_mps;
+	sensor_anemometer.w = W_vel_mps;
+	_sensor_anemometer_pub.publish(sensor_anemometer);
 
-	
-	//uint devID = Convert.ToUInt32(_fd);
-	anem_uvw.device_id = (uint) 0;
-	anem_uvw.timestamp = timestamp_us;
-	anem_uvw.u = U_vel_mps;
-	anem_uvw.v = V_vel_mps;
-	anem_uvw.w = W_vel_mps;
-	//Publish
-	orb_publish(ORB_ID(sensor_anemometer), sensor_anemometer_pub, &anem_uvw);
+	//Assign values to the "sensor_pth" message
+	sensor_pth_s sensor_pth{};
+	sensor_pth.timestamp = timestamp_us;
+	sensor_pth.p = Pressure_Pa;
+	sensor_pth.t = Temperature_celcius;
+	sensor_pth.h = Humidiy_precent;
+	sensor_pth.rho = Air_density_kgpm3;
+	_sensor_pth_pub.publish(sensor_pth);
 
 	// Successfully read a packet of data and published it! Keep reading!
 	return 1;
@@ -130,7 +134,7 @@ int TrisonicaMini::collect() {
 	PX4_INFO("Starting collection...\n");
 
 	/* TODO: what is this and is it needed? */
-	//perf_begin(_sample_perf);
+	perf_begin(_sample_perf);
 
 	/* clear buffer if last read was too long ago */
 	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
@@ -139,13 +143,13 @@ int TrisonicaMini::collect() {
 	char readbuf[sizeof(_packet)];
 	unsigned readlen = sizeof(readbuf) - 1;
 
-	/* read from the sensor (uart buffer) */
-	//const hrt_abstime timestamp_sample = hrt_absolute_time();
 	int bytes_read = ::read(_fd, &readbuf[_readbuf_idx], readlen);
+	PX4_INFO("Readbuf idx: %d\n", _readbuf_idx);
+	PX4_INFO("Bytes read: %d\n", bytes_read);
 	if (bytes_read < 0) {
 		PX4_DEBUG("read err: %d", bytes_read);
-		//perf_count(_comms_errors);
-		//perf_end(_sample_perf);
+		perf_count(_comms_errors);
+		perf_end(_sample_perf);
 
 		/* only throw an error if we time out */
 		if (read_elapsed > (_interval * 2)) {
@@ -158,42 +162,52 @@ int TrisonicaMini::collect() {
 		return -EAGAIN;
 	}
 
-	PX4_INFO("bytes read:\n");
+	//PX4_INFO("bytes read:\n");
 
 	for (int i = _readbuf_idx; i < bytes_read; i++)
 	{
 		//Look for the start of the packet
 		if (_assemble_packet == 0 && readbuf[i] == _starting_char)
 		{
-			_packet[_packet_idx++] = readbuf[i];
+			PX4_INFO("We hit FIRST start");
+			_packet[_packet_idx] = readbuf[i];
 			timestamp_us = hrt_absolute_time(); //Get the data timestamp in microseconds
 			_assemble_packet = 1;
+			PX4_INFO("i: %d", i);
+			_packet_idx++;
 		}
 
 		//Assemble data into packet when a start character is found
-		if (_assemble_packet == 1)
+		else
 		{
+			printf("Packet_idx: %d, i: %d, readbuf_idx: %d\n", _packet_idx, i, _readbuf_idx);
 			// Copy all the subsequent data into the packet
-			_packet[_packet_idx++] = readbuf[i];
+			_packet[_packet_idx] = readbuf[i];
+			_packet_idx++;
+
 			//If the ending character show up, finish reading the packet
 			if (readbuf[i] == _ending_char)
 			{
 				_packet[_packet_idx] = '\0'; //Null terminate the packet, that is the standard
 				_assemble_packet = 0; //Stop assembling packet
+				_packet_idx = 0;
+				//Parse the data and publish to the specific topics
+				//int success = parse(_packet); //For debug
+				//PX4_INFO("Print data: %d", success); //For debug
+				parse(_packet);
+				PX4_INFO("Assembly success!");
 
-				//****DO SOMETHING WITH THE DATA****//
-
-				//Advance the read index two steps if there are two null characters
-				_readbuf_idx++;
-				return _packet_idx; //return size of packet
+				//return 0;
 				//PX4_INFO("Found LF: %x at %d",readbuf[i], i);
 			}
 
-			//If we receive another start character (corrupted data!)
+			//If we receive another start character
 			else if (readbuf[i] == _starting_char)
 			{
+				PX4_INFO("We hit another start");
 				_packet_idx = 0; //Start over
-				_packet[_packet_idx++] = readbuf[i];
+				_packet[_packet_idx] = readbuf[i];
+				_packet_idx++;
 				timestamp_us = hrt_absolute_time(); //Get the data timestamp in microseconds
 				_assemble_packet = 1;
 			}
@@ -201,24 +215,28 @@ int TrisonicaMini::collect() {
 			//If we hit a null ('\0') character after starting (corrupt data!)
 			else if	(readbuf[i] == '\0')
 			{
+				PX4_INFO("We hit a NULL");
 				//Reset everything
 				_readbuf_idx = 0;
 				_packet_idx = 0;
 				bytes_read = 0;
 				_assemble_packet = 0;
+				return PX4_OK; //Exit out, something is wrong
 			}
 
-			else if (_packet_idx > 200)
+			else if (_packet_idx > 400)
 			{
 				PX4_ERR("Buffer overrun!");
 				_overrun_count++; //Increase the counter
 				_packet[_packet_idx] = '\0'; //Terminate with a null
-				if (_overrun_count > 10)
+				if (_overrun_count > 5)
 				{
-					return -1; //Exit out, something is wrong
+					return PX4_ERROR; //Exit out, something is wrong
 				}
-				return 0; //Try again
+				return PX4_OK; //Try again
 			}
+
+		PX4_INFO("Exit out of loop \n");
 		}
 	}
 
@@ -227,36 +245,7 @@ int TrisonicaMini::collect() {
 	bytes_read = 0;
 	PX4_INFO("End of data \n");
 
-	/* we have made a successful read. make note of the time and initialize. */
-	//_last_read = hrt_absolute_time();
-	//bool valid = false;
-
-	/* TODO: Determine how we should parse the data based on the mode */
-	// int32_t mode = 0;
-	// param_get(param_find("SENS_EN_TRIMINI"), &mode);
-
-	/* assemble a packet of raw bytes
-	for (size_t i = 0; i < bytes_read; i++) {
-		if (OK == TrisonicaMini::assemble(readbuf[i], &_readbuf_idx, _packet, &_packet_index, &_parse_state)) {
-			valid = true;
-		}
-	}
-	if (!valid) {
-		return -EAGAIN;
-	} */
-
-	//float <empty topic here> = <static const empty value>; // TODO:
-
-	/* supposedly we have a complete packet we can now parse */
-	//int ret = TrisonicaMini::parse(_packet, &topic);
-
-	// _px4_rangefinder.update(timestamp_sample, distance_m);
-
-	//perf_end(_sample_perf);
-
-	/*
-	 * Here, we will publish to two topics: sensor_anemometer and sensor_pth
-	 */
+	perf_end(_sample_perf);
 
 	return PX4_OK;
 }
@@ -341,6 +330,7 @@ void TrisonicaMini::Run() {
 	if (ret_col < 0) {
 		PX4_INFO("RETCOL:%d\n", ret_col);
 	}
+	// Make sure we are error'ing gracefully
 }
 
 void TrisonicaMini::start() {

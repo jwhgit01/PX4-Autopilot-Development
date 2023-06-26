@@ -49,7 +49,7 @@
 #include <lib/parameters/param.h>
 #include <lib/perf/perf_counter.h>
 
-#include <uORB/Publication.hpp>
+//#include <uORB/Publication.hpp>
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/topics/sensor_anemometer.h>
 #include <uORB/topics/sensor_pth.h>
@@ -99,14 +99,13 @@ private:
 	char _packet[256] {};
 	unsigned _readbuf_idx = 0;
 	unsigned _packet_idx = 0;
-	enum PARSE_STATE _parse_state {PARSE_STATE_UNSYNC};
 	hrt_abstime _last_read{0};
 	//In a packet, the first character of
 	//the anemometer sensor output is "S"
-	char _starting_char = 'S';
+	const char _starting_char = 'S';
 	//In a packet, the last character of
 	//the anemometer sensor output is a line feed ('\n')
-	char _ending_char = '\n';
+	const char _ending_char = '\n';
 	unsigned _consecutive_fail_count;
 	bool _assemble_packet = 0; //boolean to start assembling the packet
 	int _overrun_count = 0; //Buffer overrun counter
@@ -114,13 +113,15 @@ private:
 	//High-resolution data timestamp in microseconds
 	uint64_t timestamp_us;
 
-	//Anemometer struct
-	struct sensor_anemometer_s anem_uvw;
+	//Anemometer structs
+	//struct sensor_anemometer_s anem_uvw;
+	//struct sensor_pth_s anem_pth;
 
 	perf_counter_t _sample_perf;
 	perf_counter_t _comms_errors;
 
 	uORB::PublicationMulti<sensor_anemometer_s> _sensor_anemometer_pub{ORB_ID(sensor_anemometer)};
 	uORB::PublicationMulti<sensor_pth_s> _sensor_pth_pub{ORB_ID(sensor_pth)};
-	orb_advert_t sensor_anemometer_pub; //Test
+	//orb_advert_t sensor_anemometer_pub; //Test
+	//orb_advert_t sensor_pth_pub; //Test
 };
