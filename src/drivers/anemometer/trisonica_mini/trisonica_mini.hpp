@@ -94,9 +94,9 @@ private:
 
 	char _port[20] {};
 	unsigned _baud{B115200};
-	int _interval{200_ms};
+	int _interval{10_ms};
 	int	_fd{-1};
-	char _packet[256] {};
+	char _packet[128] {};
 	unsigned _readbuf_idx = 0;
 	unsigned _packet_idx = 0;
 	hrt_abstime _last_read{0};

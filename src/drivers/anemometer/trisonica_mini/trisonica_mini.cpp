@@ -88,24 +88,20 @@ int TrisonicaMini::parse(const char* packet_data)
 	//Check the scan result. If something is wrong at this point, try again.
 	if (scan_result != 9) {
 		PX4_ERR("Invalid string format from Anemometer: %d tokens read", scan_result);
-		return 0;
+		return -EAGAIN;
 	}
 
-	//PX4_INFO("Time: %f\n", (double) timestamp_us/1000000);
-
-/*
-	PX4_INFO("S:%f, D:%f, U:%f, V:%f, W:%f, T:%f, H:%f, P:%f, AD:%f\n",
-	 (double) windspeed_mps, (double) wind_direction_deg, (double) U_vel_mps,
-	 (double) V_vel_mps, (double) W_vel_mps, (double) Temperature_celcius,
-	 (double) Humidiy_precent, (double) Pressure_Pa, (double) Air_density_kgpm3);
-
-	 PX4_INFO("AD:%f\n", (double) Air_density_kgpm3);
-*/
 	// print the good packet
 	#ifdef PRINT_PACKET
 		PX4_INFO("%s", packet_data); //Print the packet
 	#endif
 
+	//Display Data
+	printf("S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n",
+	(double) windspeed_mps, (double) wind_direction_deg,
+	(double) U_vel_mps, (double) V_vel_mps, (double) W_vel_mps,
+	(double) Temperature_celcius, (double) Humidiy_precent,
+	(double) Pressure_Pa, (double) Air_density_kgpm3);
 
 	//Assign values to the "sensor_anemometer" message
 	sensor_anemometer_s sensor_anemometer{};
@@ -125,8 +121,7 @@ int TrisonicaMini::parse(const char* packet_data)
 	_sensor_pth_pub.publish(sensor_pth);
 
 	// Successfully read a packet of data and published it! Keep reading!
-	return 1;
-
+	return PX4_OK;
 }
 
 int TrisonicaMini::collect() {
@@ -138,49 +133,66 @@ int TrisonicaMini::collect() {
 
 	/* clear buffer if last read was too long ago */
 	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
+	int timeout_counter = 0;
 
 	/* the buffer for read chars is buflen minus null termination */
 	char readbuf[sizeof(_packet)];
 	unsigned readlen = sizeof(readbuf) - 1;
 
 	int bytes_read = ::read(_fd, &readbuf[_readbuf_idx], readlen);
-	PX4_INFO("Readbuf idx: %d\n", _readbuf_idx);
 	PX4_INFO("Bytes read: %d\n", bytes_read);
 	if (bytes_read < 0) {
-		PX4_DEBUG("read err: %d", bytes_read);
+		PX4_ERR("read err: %d", bytes_read);
 		perf_count(_comms_errors);
 		perf_end(_sample_perf);
 
-		/* only throw an error if we time out */
-		if (read_elapsed > (_interval * 2)) {
-			return bytes_read;
-		} else {
-			return -EAGAIN;
+		/* only throw an error if we time out 10 times*/
+		if (read_elapsed > (_interval * 2))
+		{
+			timeout_counter++;
+			return -EAGAIN; //Read again
+			if (timeout_counter >= 100)
+			{
+				PX4_ERR("Something is wrong! Exiting out.");
+				return PX4_ERROR;
+			}
+		}
+		else
+		{
+			return -EAGAIN; //Read again
 		}
 	} else if (bytes_read == 0) {
-		/* zero bytes read without error. read again. */
+		PX4_INFO("Zero bytes read without error. Read again.\n");
 		return -EAGAIN;
 	}
 
-	//PX4_INFO("bytes read:\n");
-
 	for (int i = _readbuf_idx; i < bytes_read; i++)
 	{
+
+		/*
+		//For debugging, add custom data in the readbuf
+		if (i == 38)
+		{
+			_packet_idx = 250;
+		}
+		*/
+
 		//Look for the start of the packet
 		if (_assemble_packet == 0 && readbuf[i] == _starting_char)
 		{
-			PX4_INFO("We hit FIRST start");
+			PX4_INFO("We hit FIRST start"); //debug
+			_packet_idx = 0; //Start over
 			_packet[_packet_idx] = readbuf[i];
 			timestamp_us = hrt_absolute_time(); //Get the data timestamp in microseconds
 			_assemble_packet = 1;
-			PX4_INFO("i: %d", i);
+			PX4_INFO("i: %d", i); //debug
 			_packet_idx++;
 		}
 
 		//Assemble data into packet when a start character is found
-		else
+		else if (_assemble_packet == 1)
 		{
-			printf("Packet_idx: %d, i: %d, readbuf_idx: %d\n", _packet_idx, i, _readbuf_idx);
+			printf("Packet_idx: %d, i: %d\n", _packet_idx, i);
 			// Copy all the subsequent data into the packet
 			_packet[_packet_idx] = readbuf[i];
 			_packet_idx++;
@@ -190,15 +202,17 @@ int TrisonicaMini::collect() {
 			{
 				_packet[_packet_idx] = '\0'; //Null terminate the packet, that is the standard
 				_assemble_packet = 0; //Stop assembling packet
-				_packet_idx = 0;
-				//Parse the data and publish to the specific topics
-				//int success = parse(_packet); //For debug
-				//PX4_INFO("Print data: %d", success); //For debug
-				parse(_packet);
-				PX4_INFO("Assembly success!");
 
-				//return 0;
-				//PX4_INFO("Found LF: %x at %d",readbuf[i], i);
+				//Parse the data and publish to the specific topics
+				int success = parse(_packet);
+				if (success == 0)
+				{
+					PX4_INFO("Assembly success!");
+				}
+				else
+				{
+					PX4_INFO("Assembly Failed!");
+				}
 			}
 
 			//If we receive another start character
@@ -207,9 +221,9 @@ int TrisonicaMini::collect() {
 				PX4_INFO("We hit another start");
 				_packet_idx = 0; //Start over
 				_packet[_packet_idx] = readbuf[i];
-				_packet_idx++;
 				timestamp_us = hrt_absolute_time(); //Get the data timestamp in microseconds
 				_assemble_packet = 1;
+				_packet_idx++;
 			}
 
 			//If we hit a null ('\0') character after starting (corrupt data!)
@@ -218,35 +232,35 @@ int TrisonicaMini::collect() {
 				PX4_INFO("We hit a NULL");
 				//Reset everything
 				_readbuf_idx = 0;
-				_packet_idx = 0;
 				bytes_read = 0;
 				_assemble_packet = 0;
-				return PX4_OK; //Exit out, something is wrong
+				PX4_ERR("Something is wrong, read again!");
+				return -EAGAIN;
 			}
 
-			else if (_packet_idx > 400)
+			else if (_packet_idx > 200)
 			{
-				PX4_ERR("Buffer overrun!");
+				PX4_ERR("Buffer overrun!\n");
 				_overrun_count++; //Increase the counter
 				_packet[_packet_idx] = '\0'; //Terminate with a null
-				if (_overrun_count > 5)
+				if (_overrun_count > 10)
 				{
-					return PX4_ERROR; //Exit out, something is wrong
+					_overrun_count = 0; //reset the count
+					PX4_ERR("Exiting out, something is wrong!\n");
+					return PX4_ERROR;
 				}
-				return PX4_OK; //Try again
+				PX4_ERR("Trying again!\n");
+				return PX4_OK;
 			}
-
-		PX4_INFO("Exit out of loop \n");
+		//*** trisonica_mini start -d /dev/ttyS1
 		}
 	}
 
 	//No more data to read (end of buffer reached)
 	_readbuf_idx = 0; //Reset the read index to 0
 	bytes_read = 0;
-	PX4_INFO("End of data \n");
-
 	perf_end(_sample_perf);
-
+	PX4_INFO("End of data. Read again!\n");
 	return PX4_OK;
 }
 
