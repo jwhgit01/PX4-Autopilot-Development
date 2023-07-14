@@ -1,0 +1,7 @@
+module_name: NSL Air Data Unit
+serial_config:
+    - command: nsl_adu start
+      port_config_param:
+        name: SENS_NSL_ADU_CFG
+        group: Sensors
+
