@@ -78,11 +78,6 @@ int NSL_ADU::collect() {
 	float beta_rad;
 	float alpha_rad;
 	if (sizeof(float) * 2 <= _num_bytes) {
-		union FloatStorage {
-        		uint8_t bytes[sizeof(float)];
-        		float value;
-    		};
-
 		FloatStorage beta_storage;
     		std::memcpy(beta_storage.bytes, _val, sizeof(float));
     		beta_rad = beta_storage.value;

@@ -64,6 +64,12 @@ static constexpr uint8_t ADDR_READ = 0x00;
 static constexpr unsigned MEAS_RATE = 200; // Hz
 static constexpr int64_t CONVERSION_INTERVAL = (1000000 / MEAS_RATE); // microseconds
 
+/* Float storage for recasting raw data */
+union FloatStorage {
+        uint8_t bytes[sizeof(float)];
+	float value;
+};
+
 /* Class definition */
 class NSL_ADU : public device::I2C, public I2CSPIDriver<NSL_ADU>
 {
@@ -83,8 +89,6 @@ private:
 
 	int collect();
 	int measure();
-
-	int probe_address(uint8_t address);
 
 	uORB::PublicationMulti<sensor_flow_angle_s> _sensor_flow_angle_pub{ORB_ID(sensor_flow_angle)};
 
