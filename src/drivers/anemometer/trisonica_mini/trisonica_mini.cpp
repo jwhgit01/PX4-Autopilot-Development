@@ -74,9 +74,9 @@ int TrisonicaMini::init() {
 
 int TrisonicaMini::parse(const char* packet_data)
 {
-	//Read and assign values to the data (!!!!!!FIX UNITS!!!!!!!!!)
+	//Read and assign values to the data (See pg. 28 of the manual for units!!!)
 	float windspeed_mps, wind_direction_deg, U_vel_mps, V_vel_mps, W_vel_mps,
-	Temperature_celcius, Humidiy_precent, Pressure_Pa, Air_density_kgpm3;
+	Temperature_celcius, Humidiy_percent, Pressure_mb, Air_density_kgpm3;
 	int scan_result = sscanf(packet_data,
 	"S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n\n",
 				&windspeed_mps,
@@ -85,8 +85,8 @@ int TrisonicaMini::parse(const char* packet_data)
 				&V_vel_mps,
 				&W_vel_mps,
 				&Temperature_celcius,
-				&Humidiy_precent,
-				&Pressure_Pa,
+				&Humidiy_percent,
+				&Pressure_mb,
 				&Air_density_kgpm3);
 	//Check the scan result. If something is wrong at this point, try again.
 	if (scan_result != 9) {
@@ -122,9 +122,9 @@ int TrisonicaMini::parse(const char* packet_data)
 	sensor_pth_s sensor_pth{};
 	sensor_pth.device_id = _device_ID;
 	sensor_pth.timestamp = timestamp_us;
-	sensor_pth.p = Pressure_Pa;
+	sensor_pth.p = Pressure_mb;
 	sensor_pth.t = Temperature_celcius;
-	sensor_pth.h = Humidiy_precent;
+	sensor_pth.h = Humidiy_percent;
 	sensor_pth.rho = Air_density_kgpm3;
 	_sensor_pth_pub.publish(sensor_pth);
 
