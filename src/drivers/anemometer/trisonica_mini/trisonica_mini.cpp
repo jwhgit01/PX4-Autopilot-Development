@@ -38,24 +38,27 @@ TrisonicaMini::TrisonicaMini(const char *port) :
 	_sample_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": read")),
 	_comms_errors(perf_alloc(PC_COUNT, MODULE_NAME": com_err"))
 {
-	/* store port name */
+	// Port name
 	strncpy(_port, port, sizeof(_port) - 1);
 
 	/* enforce null termination */
 	_port[sizeof(_port) - 1] = '\0';
 
-	/* set device ID */
+	// Set device ID
 	//device::Device::DeviceId device_id;
 	//evice_id.devid_s.bus_type = device::Device::DeviceBusType_SERIAL;
 
 	/* serial bus number (assuming '/dev/ttySx') */
-	// uint8_t bus_num = atoi(&_port[strlen(_port) - 1]);
-	//if (bus_num < 10) {
-	//	device_id.devid_s.bus = bus_num;
-	//}
-
-	// _px4_rangefinder.set_device_id(device_id.devid);
-	// _px4_rangefinder.set_device_type(DRV_DIST_DEVTYPE_LIGHTWARE_LASER);
+	uint8_t bus_num = atoi(&_port[strlen(_port) - 1]);
+	if (bus_num < 10)
+	{
+		//If the port is /dev/ttyS1 then the ID should be 0
+		_device_ID = (int) bus_num - 1;
+	}
+	else
+	{
+		PX4_ERR("Invalid device ID!\n");
+	}
 }
 
 TrisonicaMini::~TrisonicaMini() {
@@ -91,20 +94,24 @@ int TrisonicaMini::parse(const char* packet_data)
 		return -EAGAIN;
 	}
 
-	// print the good packet
+	// print the good packet ***where is this printed?
 	#ifdef PRINT_PACKET
 		PX4_INFO("%s", packet_data); //Print the packet
 	#endif
 
+	//PX4_INFO("DEV ID: %d", _device_ID); // Debug
 	//Display Data
+	/*
 	printf("S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n",
 	(double) windspeed_mps, (double) wind_direction_deg,
 	(double) U_vel_mps, (double) V_vel_mps, (double) W_vel_mps,
 	(double) Temperature_celcius, (double) Humidiy_precent,
-	(double) Pressure_Pa, (double) Air_density_kgpm3);
+	(double) Pressure_Pa, (double) Air_density_kgpm3); //Debug
+	*/
 
 	//Assign values to the "sensor_anemometer" message
 	sensor_anemometer_s sensor_anemometer{};
+	sensor_anemometer.device_id = _device_ID;
 	sensor_anemometer.timestamp = timestamp_us;
 	sensor_anemometer.u = U_vel_mps;
 	sensor_anemometer.v = V_vel_mps;
@@ -113,6 +120,7 @@ int TrisonicaMini::parse(const char* packet_data)
 
 	//Assign values to the "sensor_pth" message
 	sensor_pth_s sensor_pth{};
+	sensor_pth.device_id = _device_ID;
 	sensor_pth.timestamp = timestamp_us;
 	sensor_pth.p = Pressure_Pa;
 	sensor_pth.t = Temperature_celcius;
@@ -133,7 +141,6 @@ int TrisonicaMini::collect() {
 
 	/* clear buffer if last read was too long ago */
 	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
-	int timeout_counter = 0;
 
 	/* the buffer for read chars is buflen minus null termination */
 	char readbuf[sizeof(_packet)];
@@ -141,34 +148,44 @@ int TrisonicaMini::collect() {
 
 	int bytes_read = ::read(_fd, &readbuf[_readbuf_idx], readlen);
 	PX4_INFO("Bytes read: %d\n", bytes_read);
-	if (bytes_read < 0) {
-		PX4_ERR("read err: %d", bytes_read);
-		perf_count(_comms_errors);
-		perf_end(_sample_perf);
 
-		/* only throw an error if we time out 10 times*/
-		if (read_elapsed > (_interval * 2))
+
+	//For debugging, change bytes_read to see how the code is affected
+	//bytes_read = -1;
+	//PX4_INFO ("Read elapsed: %lf", (double) read_elapsed/1000000); // Debug
+	//PX4_INFO ("Last read: %lf", (double) _last_read/1000000); // Debug
+	//PX4_INFO ("Abs time: %lf", (double) hrt_absolute_time()/1000000); // Debug
+
+	if (bytes_read <= 0)
+	{
+		if (bytes_read == 0)
 		{
-			timeout_counter++;
-			return -EAGAIN; //Read again
-			if (timeout_counter >= 100)
+			PX4_INFO("Zero bytes read without error. Read again.\n");
+			return -EAGAIN;
+		}
+		else
+		{
+			PX4_ERR("Read err: %d", bytes_read);
+			perf_count(_comms_errors);
+			perf_end(_sample_perf);
+
+			// Throw an error if we don't have any read for 5 seconds.
+			if (read_elapsed > 5000000) // This time is in micro seconds
 			{
 				PX4_ERR("Something is wrong! Exiting out.");
 				return PX4_ERROR;
 			}
+			else
+			{
+				return -EAGAIN; //Read again
+			}
 		}
-		else
-		{
-			return -EAGAIN; //Read again
-		}
-	} else if (bytes_read == 0) {
-		PX4_INFO("Zero bytes read without error. Read again.\n");
-		return -EAGAIN;
 	}
+
+	_last_read = hrt_absolute_time();
 
 	for (int i = _readbuf_idx; i < bytes_read; i++)
 	{
-
 		/*
 		//For debugging, add custom data in the readbuf
 		if (i == 38)
@@ -180,22 +197,20 @@ int TrisonicaMini::collect() {
 		//Look for the start of the packet
 		if (_assemble_packet == 0 && readbuf[i] == _starting_char)
 		{
-			PX4_INFO("We hit FIRST start"); //debug
+			//PX4_INFO("We hit FIRST start"); //debug
 			_packet_idx = 0; //Start over
 			_packet[_packet_idx] = readbuf[i];
 			timestamp_us = hrt_absolute_time(); //Get the data timestamp in microseconds
 			_assemble_packet = 1;
-			PX4_INFO("i: %d", i); //debug
-			_packet_idx++;
+			//PX4_INFO("i: %d", i); //debug
 		}
 
 		//Assemble data into packet when a start character is found
 		else if (_assemble_packet == 1)
 		{
-			printf("Packet_idx: %d, i: %d\n", _packet_idx, i);
+			//printf("Packet_idx: %d, i: %d\n", _packet_idx, i); //Debug
 			// Copy all the subsequent data into the packet
 			_packet[_packet_idx] = readbuf[i];
-			_packet_idx++;
 
 			//If the ending character show up, finish reading the packet
 			if (readbuf[i] == _ending_char)
@@ -205,25 +220,23 @@ int TrisonicaMini::collect() {
 
 				//Parse the data and publish to the specific topics
 				int success = parse(_packet);
-				if (success == 0)
+				if (success != 0)
 				{
-					PX4_INFO("Assembly success!");
+					PX4_INFO("Assembly Failed!");
 				}
 				else
 				{
-					PX4_INFO("Assembly Failed!");
+					PX4_INFO("Assembly Success!");
 				}
 			}
 
 			//If we receive another start character
 			else if (readbuf[i] == _starting_char)
 			{
-				PX4_INFO("We hit another start");
+				//PX4_INFO("We hit another start"); //Debug
 				_packet_idx = 0; //Start over
 				_packet[_packet_idx] = readbuf[i];
 				timestamp_us = hrt_absolute_time(); //Get the data timestamp in microseconds
-				_assemble_packet = 1;
-				_packet_idx++;
 			}
 
 			//If we hit a null ('\0') character after starting (corrupt data!)
@@ -235,7 +248,8 @@ int TrisonicaMini::collect() {
 				bytes_read = 0;
 				_assemble_packet = 0;
 				PX4_ERR("Something is wrong, read again!");
-				return -EAGAIN;
+				//Discard all the data and start over
+				return -EAGAIN; //Read again
 			}
 
 			else if (_packet_idx > 200)
@@ -243,6 +257,8 @@ int TrisonicaMini::collect() {
 				PX4_ERR("Buffer overrun!\n");
 				_overrun_count++; //Increase the counter
 				_packet[_packet_idx] = '\0'; //Terminate with a null
+				_packet_idx = -1; //Set the packet index to -1 as it will get incremented later
+				_assemble_packet = 0; //Start packet assembly
 				if (_overrun_count > 10)
 				{
 					_overrun_count = 0; //reset the count
@@ -250,10 +266,10 @@ int TrisonicaMini::collect() {
 					return PX4_ERROR;
 				}
 				PX4_ERR("Trying again!\n");
-				return PX4_OK;
+				return PX4_OK; // -EAGAIN or PX4_OK?
 			}
-		//*** trisonica_mini start -d /dev/ttyS1
 		}
+	_packet_idx++; // Increase the packet index
 	}
 
 	//No more data to read (end of buffer reached)

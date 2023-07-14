@@ -107,21 +107,16 @@ private:
 	//the anemometer sensor output is a line feed ('\n')
 	const char _ending_char = '\n';
 	unsigned _consecutive_fail_count;
-	bool _assemble_packet = 0; //boolean to start assembling the packet
+	bool _assemble_packet = 0; //Boolean to start assembling the packet
 	int _overrun_count = 0; //Buffer overrun counter
+	int _device_ID; //PX4 device ID
 
 	//High-resolution data timestamp in microseconds
 	uint64_t timestamp_us;
-
-	//Anemometer structs
-	//struct sensor_anemometer_s anem_uvw;
-	//struct sensor_pth_s anem_pth;
 
 	perf_counter_t _sample_perf;
 	perf_counter_t _comms_errors;
 
 	uORB::PublicationMulti<sensor_anemometer_s> _sensor_anemometer_pub{ORB_ID(sensor_anemometer)};
 	uORB::PublicationMulti<sensor_pth_s> _sensor_pth_pub{ORB_ID(sensor_pth)};
-	//orb_advert_t sensor_anemometer_pub; //Test
-	//orb_advert_t sensor_pth_pub; //Test
 };
