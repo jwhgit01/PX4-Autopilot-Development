@@ -144,6 +144,7 @@ set(msg_files
 	sensor_baro.msg
 	sensor_combined.msg
 	sensor_correction.msg
+	sensor_flow_angle.msg
 	sensor_gps.msg
 	sensor_gnss_relative.msg
 	sensor_gyro.msg
