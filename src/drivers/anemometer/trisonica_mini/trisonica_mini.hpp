@@ -32,24 +32,25 @@
  ****************************************************************************/
 
 /**
- * @file lightware_laser_serial.hpp
- * @author Lorenz Meier <lm@inf.ethz.ch>
- * @author Greg Hulands
+ * @file trisonica_mini.hpp
+ * @author Jeremy Hopwood <jeremyhopwood@vt.edu>
+ * @author Nazmus Sakib <>
  *
- * Driver for the Lightware laser rangefinder series
+ * Driver for the Trisonica Mini 3D sonic anemometer
  */
 
 #pragma once
 
 #include <px4_platform_common/px4_config.h>
 #include <px4_platform_common/px4_work_queue/ScheduledWorkItem.hpp>
+
 #include <drivers/drv_hrt.h>
 #include <drivers/device/device.h>
+
 #include <lib/drivers/device/Device.hpp>
 #include <lib/parameters/param.h>
 #include <lib/perf/perf_counter.h>
 
-//#include <uORB/Publication.hpp>
 #include <uORB/PublicationMulti.hpp>
 #include <uORB/topics/sensor_anemometer.h>
 #include <uORB/topics/sensor_pth.h>
@@ -70,7 +71,6 @@ public:
 
 	int init();
 	void print_info();
-	int parse(const char* packet_data);
 
 private:
 
@@ -81,41 +81,28 @@ private:
 	int collect();
 	int open_serial_port();
 
-	/* Serial data parser */
-	enum PARSE_STATE {
-		PARSE_STATE_UNSYNC = 0,
-		PARSE_STATE_SYNC,
-		PARSE_STATE_GOT_S
-	};
-	//int assemble(char c, unsigned *_readbuf_index, char *packetbuf, unsigned *packetbuf_index, enum PARSE_STATE *state);
-	//int parse(char c, char *packetbuf, unsigned *packetbuf_index, enum PARSE_STATE *state, float *dist);
+	/* Function for parsing packet data */
+	int parse(const char* packet_data);
 
-	// PX4Rangefinder _px4_rangefinder;
+	/* Private variables */
+	char _port[20] {}; // Serial port name
+	unsigned _baud{B115200}; // Baud rate of the Trisonical Mini
+	int _interval{10_ms}; // Read interval. The Trisonica Mini sampling rate is 10 Hz.
+	int	_fd{-1}; // Serial port file descriptor
+	char _packet[128] {}; // A packet of data from the anemometer
+	unsigned _readbuf_idx = 0; // The read buffer index (where the incoming data is being placed)
+	unsigned _packet_idx = 0; // The packet index (where the valid bytes read are placed)
+	hrt_abstime _last_read{0}; // Time of the last read used for error checking
+	const char _starting_char = 'S'; // Starting character of a packet
+	const char _ending_char = '\n'; // Ending character of a packet
+	bool _assemble_packet = 0; // Boolean whether to start assembling the packet
+	int _overrun_count = 0; // Buffer overrun counter
+	int _device_ID; // PX4 device ID
 
-	char _port[20] {};
-	unsigned _baud{B115200};
-	int _interval{10_ms};
-	int	_fd{-1};
-	char _packet[128] {};
-	unsigned _readbuf_idx = 0;
-	unsigned _packet_idx = 0;
-	hrt_abstime _last_read{0};
-	//In a packet, the first character of
-	//the anemometer sensor output is "S"
-	const char _starting_char = 'S';
-	//In a packet, the last character of
-	//the anemometer sensor output is a line feed ('\n')
-	const char _ending_char = '\n';
-	unsigned _consecutive_fail_count;
-	bool _assemble_packet = 0; //Boolean to start assembling the packet
-	int _overrun_count = 0; //Buffer overrun counter
-	int _device_ID; //PX4 device ID
+	uint64_t timestamp_us; // High-resolution data timestamp in microseconds
 
-	//High-resolution data timestamp in microseconds
-	uint64_t timestamp_us;
-
-	perf_counter_t _sample_perf;
-	perf_counter_t _comms_errors;
+	perf_counter_t _sample_perf; // Number of samples performed
+	perf_counter_t _comms_errors; // Number of sample errors
 
 	uORB::PublicationMulti<sensor_anemometer_s> _sensor_anemometer_pub{ORB_ID(sensor_anemometer)};
 	uORB::PublicationMulti<sensor_pth_s> _sensor_pth_pub{ORB_ID(sensor_pth)};

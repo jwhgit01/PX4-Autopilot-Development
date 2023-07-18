@@ -38,26 +38,18 @@ TrisonicaMini::TrisonicaMini(const char *port) :
 	_sample_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": read")),
 	_comms_errors(perf_alloc(PC_COUNT, MODULE_NAME": com_err"))
 {
-	// Port name
+	/* Port name */
 	strncpy(_port, port, sizeof(_port) - 1);
 
 	/* enforce null termination */
 	_port[sizeof(_port) - 1] = '\0';
 
-	// Set device ID
-	//device::Device::DeviceId device_id;
-	//evice_id.devid_s.bus_type = device::Device::DeviceBusType_SERIAL;
-
-	/* serial bus number (assuming '/dev/ttySx') */
+	/* Serial bus number (/dev/ttySx) and set device ID */
 	uint8_t bus_num = atoi(&_port[strlen(_port) - 1]);
-	if (bus_num < 10)
-	{
-		//If the port is /dev/ttyS1 then the ID should be 0
-		_device_ID = (int) bus_num - 1;
-	}
-	else
-	{
-		PX4_ERR("Invalid device ID!\n");
+	if (bus_num < 10) {
+		_device_ID = (int) bus_num;
+	} else {
+		PX4_ERR("Invalid device ID from port number!\n");
 	}
 }
 
@@ -72,83 +64,83 @@ int TrisonicaMini::init() {
 	return PX4_OK;
 }
 
-int TrisonicaMini::parse(const char* packet_data)
-{
-	//Read and assign values to the data (See pg. 28 of the manual for units!!!)
-	float windspeed_mps, wind_direction_deg, U_vel_mps, V_vel_mps, W_vel_mps,
-	Temperature_celcius, Humidiy_percent, Pressure_mb, Air_density_kgpm3;
+int TrisonicaMini::parse(const char* packet_data) {
+	/* Read and assign values to the data (See pg.28 of the manual for units) */
+	float windspeed_m_s, wind_direction_deg,
+	      u_m_s, v_m_s, w_m_s,
+	      temp_C, rel_humidity, P_mb, rho_kg_m3;
 	int scan_result = sscanf(packet_data,
-	"S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n\n",
-				&windspeed_mps,
-				&wind_direction_deg,
-				&U_vel_mps,
-				&V_vel_mps,
-				&W_vel_mps,
-				&Temperature_celcius,
-				&Humidiy_percent,
-				&Pressure_mb,
-				&Air_density_kgpm3);
-	//Check the scan result. If something is wrong at this point, try again.
+	                         "S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n\n", /* Will this work with just one \n? */
+	                         &windspeed_m_s
+	                         &wind_direction_deg,
+	                         &u_m_s,
+	                         &v_m_s,
+	                         &w_m_s,
+	                         &temp_C,
+	                         &rel_humidity,
+	                         &P_mb,
+	                         &rho_kg_m3);
+
+	/* Check the scan result. If something is wrong, try again. */
 	if (scan_result != 9) {
 		PX4_ERR("Invalid string format from Anemometer: %d tokens read", scan_result);
 		return -EAGAIN;
 	}
 
-	// print the good packet ***where is this printed?
-	#ifdef PRINT_PACKET
-		PX4_INFO("%s", packet_data); //Print the packet
-	#endif
+	/* If we have made it here, we have a good packet of data */
+	PX4_DEBUG("%s", packet_data);
+
+	/* Convert pressure from millibar to Pascals */
+	float P_Pa = P_mb*100.0;
 
 	//PX4_INFO("DEV ID: %d", _device_ID); // Debug
 	//Display Data
 	/*
 	printf("S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n",
-	(double) windspeed_mps, (double) wind_direction_deg,
-	(double) U_vel_mps, (double) V_vel_mps, (double) W_vel_mps,
-	(double) Temperature_celcius, (double) Humidiy_precent,
-	(double) Pressure_Pa, (double) Air_density_kgpm3); //Debug
+	(double) windspeed_m_s, (double) wind_direction_deg,
+	(double) u_m_s, (double) v_m_s, (double) w_m_s,
+	(double) temp_C, (double) rel_humidity,
+	(double) P_Pa, (double) rho_kg_m3); //Debug
 	*/
 
-	//Assign values to the "sensor_anemometer" message
+	/* Assign values to the "sensor_anemometer" message */
 	sensor_anemometer_s sensor_anemometer{};
 	sensor_anemometer.device_id = _device_ID;
 	sensor_anemometer.timestamp = timestamp_us;
-	sensor_anemometer.u = U_vel_mps;
-	sensor_anemometer.v = V_vel_mps;
-	sensor_anemometer.w = W_vel_mps;
+	sensor_anemometer.u = u_m_s;
+	sensor_anemometer.v = v_m_s;
+	sensor_anemometer.w = w_m_s;
 	_sensor_anemometer_pub.publish(sensor_anemometer);
 
-	//Assign values to the "sensor_pth" message
+	/* Assign values to the "sensor_pth" message */
 	sensor_pth_s sensor_pth{};
 	sensor_pth.device_id = _device_ID;
 	sensor_pth.timestamp = timestamp_us;
-	sensor_pth.p = Pressure_mb;
-	sensor_pth.t = Temperature_celcius;
-	sensor_pth.h = Humidiy_percent;
-	sensor_pth.rho = Air_density_kgpm3;
+	sensor_pth.pressure = P_Pa;
+	sensor_pth.temperature = temp_C;
+	sensor_pth.humidity = rel_humidity;
+	sensor_pth.air_density = rho_kg_m3;
 	_sensor_pth_pub.publish(sensor_pth);
 
-	// Successfully read a packet of data and published it! Keep reading!
+	/* Successfully read and published a packet of data! Keep reading! */
 	return PX4_OK;
 }
 
 int TrisonicaMini::collect() {
-
-	PX4_INFO("Starting collection...\n");
-
-	/* TODO: what is this and is it needed? */
+	/* We are begining a sample */
+	PX4_DEBUG("Starting collection...\n");
 	perf_begin(_sample_perf);
 
-	/* clear buffer if last read was too long ago */
+	/* Make note of the time since the last read */
 	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
 
-	/* the buffer for read chars is buflen minus null termination */
+	/* The number of bytes read is the packet length minus null termination */
 	char readbuf[sizeof(_packet)];
 	unsigned readlen = sizeof(readbuf) - 1;
 
+	/* Perform a read */
 	int bytes_read = ::read(_fd, &readbuf[_readbuf_idx], readlen);
 	PX4_INFO("Bytes read: %d\n", bytes_read);
-
 
 	//For debugging, change bytes_read to see how the code is affected
 	//bytes_read = -1;
@@ -156,127 +148,96 @@ int TrisonicaMini::collect() {
 	//PX4_INFO ("Last read: %lf", (double) _last_read/1000000); // Debug
 	//PX4_INFO ("Abs time: %lf", (double) hrt_absolute_time()/1000000); // Debug
 
-	if (bytes_read <= 0)
-	{
-		if (bytes_read == 0)
-		{
-			PX4_INFO("Zero bytes read without error. Read again.\n");
-			return -EAGAIN;
-		}
-		else
-		{
-			PX4_ERR("Read err: %d", bytes_read);
-			perf_count(_comms_errors);
-			perf_end(_sample_perf);
+	/* Check for read errors */
+	if (bytes_read == 0) {
+		PX4_INFO("Zero bytes read without error. Read again.\n");
+		return -EAGAIN;
+	} else if (bytes_read < 0) {
+		PX4_ERR("Read error: %d", bytes_read);
+		perf_count(_comms_errors);
+		perf_end(_sample_perf);
 
-			// Throw an error if we don't have any read for 5 seconds.
-			if (read_elapsed > 5000000) // This time is in micro seconds
-			{
-				PX4_ERR("Something is wrong! Exiting out.");
-				return PX4_ERROR;
-			}
-			else
-			{
-				return -EAGAIN; //Read again
-			}
+		/* Throw an error if we don't have a read for 5 seconds */
+		if (read_elapsed > 5*1_s) {
+			PX4_ERR("Something is wrong! Exiting out.");
+			return PX4_ERROR;
 		}
+
+		/* Try again */
+		return -EAGAIN;
 	}
 
+	/* If we made it here, we have a successful read form the serial port */
 	_last_read = hrt_absolute_time();
 
-	for (int i = _readbuf_idx; i < bytes_read; i++)
-	{
-		/*
-		//For debugging, add custom data in the readbuf
-		if (i == 38)
-		{
-			_packet_idx = 250;
-		}
-		*/
+	/* Loop through the read buffer and assemble a packet */
+	for (int i = _readbuf_idx; i < bytes_read; i++) {
 
-		//Look for the start of the packet
-		if (_assemble_packet == 0 && readbuf[i] == _starting_char)
-		{
-			//PX4_INFO("We hit FIRST start"); //debug
-			_packet_idx = 0; //Start over
-			_packet[_packet_idx] = readbuf[i];
-			timestamp_us = hrt_absolute_time(); //Get the data timestamp in microseconds
-			_assemble_packet = 1;
-			//PX4_INFO("i: %d", i); //debug
+		/* If we haven't already found it, look for the start of the packet character */
+		if (!_assemble_packet && readbuf[i] == _starting_char) {
+			_packet_idx = 0; // Start a new packet
+			_packet[_packet_idx] = readbuf[i]; // Store the start of packet character
+			timestamp_us = hrt_absolute_time(); // Get the timestamp in microseconds
+			_assemble_packet = true; // Start assembling the rest of the packet
+			PX4_DEBUG("Start of packet character found!"); //debug
 		}
 
-		//Assemble data into packet when a start character is found
-		else if (_assemble_packet == 1)
-		{
-			//printf("Packet_idx: %d, i: %d\n", _packet_idx, i); //Debug
-			// Copy all the subsequent data into the packet
+		/* If we have found a start of packet, continue assembling data.
+		 * If we have not found a start of packet nor are assembling one, move along. */
+		else if (_assemble_packet) {
+			/* Copy data into the packet */
 			_packet[_packet_idx] = readbuf[i];
 
-			//If the ending character show up, finish reading the packet
-			if (readbuf[i] == _ending_char)
-			{
-				_packet[_packet_idx] = '\0'; //Null terminate the packet, that is the standard
-				_assemble_packet = 0; //Stop assembling packet
-
-				//Parse the data and publish to the specific topics
-				int success = parse(_packet);
-				if (success != 0)
-				{
-					PX4_INFO("Assembly Failed!");
-				}
-				else
-				{
-					PX4_INFO("Assembly Success!");
+			/* If we hit an end of packet character, terminate the string and parse the packet. */
+			if (readbuf[i] == _ending_char) {
+				_packet[_packet_idx] = '\0'; // Null terminate the packet
+				_assemble_packet = false; // Stop assembling packet
+				int parse_result = parse(_packet); // Parse the data and publish it!
+				if (parse_result != 0) {
+					PX4_ERR("Packet parsing failed. Moving on.");
 				}
 			}
 
-			//If we receive another start character
-			else if (readbuf[i] == _starting_char)
-			{
-				//PX4_INFO("We hit another start"); //Debug
-				_packet_idx = 0; //Start over
-				_packet[_packet_idx] = readbuf[i];
-				timestamp_us = hrt_absolute_time(); //Get the data timestamp in microseconds
+			/* If we receive another start character, something is wrong */
+			else if (readbuf[i] == _starting_char) {
+				_packet_idx = 0; // Start over
+				_packet[_packet_idx] = readbuf[i]; // Put the new start of packet character into the packet
+				timestamp_us = hrt_absolute_time(); // Get the data timestamp in microseconds
 			}
 
-			//If we hit a null ('\0') character after starting (corrupt data!)
-			else if	(readbuf[i] == '\0')
-			{
-				PX4_INFO("We hit a NULL");
-				//Reset everything
+			/* If we hit a null ('\0') character, something is wrong. Reset everything. */
+			else if	(readbuf[i] == '\0') {
 				_readbuf_idx = 0;
-				bytes_read = 0;
 				_assemble_packet = 0;
 				PX4_ERR("Something is wrong, read again!");
-				//Discard all the data and start over
-				return -EAGAIN; //Read again
+				return -EAGAIN; // Read again
 			}
 
-			else if (_packet_idx > 200)
-			{
+			/* If the packet index is too large, handle buffer overrun */
+			else if (_packet_idx > 200) {
 				PX4_ERR("Buffer overrun!\n");
-				_overrun_count++; //Increase the counter
-				_packet[_packet_idx] = '\0'; //Terminate with a null
-				_packet_idx = -1; //Set the packet index to -1 as it will get incremented later
-				_assemble_packet = 0; //Start packet assembly
-				if (_overrun_count > 10)
-				{
-					_overrun_count = 0; //reset the count
+				_overrun_count++; // Increase the counter
+				_packet[_packet_idx] = '\0'; // Terminate with a null
+				_packet_idx = -1; // Set the packet index to -1 as it will get incremented later
+				_assemble_packet = false; // Look for start of packet character
+				if (_overrun_count > 10) {
+					_overrun_count = 0; // reset the count
 					PX4_ERR("Exiting out, something is wrong!\n");
 					return PX4_ERROR;
 				}
 				PX4_ERR("Trying again!\n");
-				return PX4_OK; // -EAGAIN or PX4_OK?
+				return -EAGAIN; // Read again
 			}
 		}
-	_packet_idx++; // Increase the packet index
+
+		/* If we have made it here, we need to continue assembling the packet.
+		 * Increment the packet index. */
+		_packet_idx++;
 	}
 
-	//No more data to read (end of buffer reached)
-	_readbuf_idx = 0; //Reset the read index to 0
-	bytes_read = 0;
+	/* No more data to read! (end of read buffer reached) */
+	_readbuf_idx = 0;
 	perf_end(_sample_perf);
-	PX4_INFO("End of data. Read again!\n");
 	return PX4_OK;
 }
 
@@ -294,13 +255,11 @@ int TrisonicaMini::open_serial_port() {
 	_fd = ::open(_port, flags);
 
 	/* check for errors */
-	if (_fd < 0)
-	{
+	if (_fd < 0) {
 		PX4_ERR("open failed (%i)", errno);
 		return PX4_ERROR;
 	}
-	if (!isatty(_fd))
-	{
+	if (!isatty(_fd)) {
 		PX4_WARN("not a serial device");
 		return PX4_ERROR;
 	}
@@ -312,36 +271,33 @@ int TrisonicaMini::open_serial_port() {
 	tcgetattr(_fd, &uart_config);
 	uart_config.c_cflag |= (CLOCAL | CREAD);
 	uart_config.c_cflag &= ~CSIZE;
-	uart_config.c_cflag |= CS8;		/* 8-bit characters */
-	uart_config.c_cflag &= ~PARENB; /* no parity bit */
-	uart_config.c_cflag &= ~CSTOPB; /* only need 1 stop bit */
-	uart_config.c_iflag |= ICRNL;  /* CR is a line terminator */
-	uart_config.c_iflag |= IGNPAR; // Ignore parity errors
+	uart_config.c_cflag |= CS8;	/* 8-bit characters */
+	uart_config.c_cflag &= ~PARENB;	/* no parity bit */
+	uart_config.c_cflag &= ~CSTOPB;	/* only need 1 stop bit */
+	uart_config.c_iflag |= ICRNL; 	/* CR is a line terminator */
+	uart_config.c_iflag |= IGNPAR; 	/* Ignore parity errors */
 
-	// no flow control
+	/* no flow control */
 	uart_config.c_cflag &= ~CRTSCTS;
 	uart_config.c_iflag &= ~(IXON | IXOFF | IXANY);
 
-	// canonical input & output
+	/* canonical input & output */
 	uart_config.c_lflag |= ICANON;
 	uart_config.c_lflag &= ~(ECHO | ECHOE | ISIG);
 	uart_config.c_oflag |= OPOST;
 
 	/* set baud rate and check for errors*/
-	if ((termios_state = cfsetispeed(&uart_config, _baud)) < 0)
-	{
+	if ((termios_state = cfsetispeed(&uart_config, _baud)) < 0) {
 		PX4_ERR("CFG: %d ISPD", termios_state);
 		::close(_fd);
 		return PX4_ERROR;
 	}
-	if ((termios_state = cfsetospeed(&uart_config, _baud)) < 0)
-	{
+	if ((termios_state = cfsetospeed(&uart_config, _baud)) < 0) {
 		PX4_ERR("CFG: %d OSPD", termios_state);
 		::close(_fd);
 		return PX4_ERROR;
 	}
-	if ((termios_state = tcsetattr(_fd, TCSANOW, &uart_config)) < 0)
-	{
+	if ((termios_state = tcsetattr(_fd, TCSANOW, &uart_config)) < 0) {
 		PX4_ERR("baud %d ATTR", termios_state);
 		::close(_fd);
 		return PX4_ERROR;
@@ -360,12 +316,11 @@ void TrisonicaMini::Run() {
 	if (ret_col < 0) {
 		PX4_INFO("RETCOL:%d\n", ret_col);
 	}
-	// Make sure we are error'ing gracefully
 }
 
 void TrisonicaMini::start() {
-	PX4_INFO("Starting trisonica_mini...\n");
 	/* schedule the driver at regular intervals */
+	PX4_INFO("Starting trisonica_mini...\n");
 	ScheduleOnInterval(_interval);
 }
 
