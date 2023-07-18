@@ -40,7 +40,6 @@ px4_add_module(
 		trisonica_mini.hpp
 		trisonica_mini_main.cpp
 	DEPENDS
-		# drivers_rangefinder
 		px4_work_queue
 	MODULE_CONFIG
 		module.yaml

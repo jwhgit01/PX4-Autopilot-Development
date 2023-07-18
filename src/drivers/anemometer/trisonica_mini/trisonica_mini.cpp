@@ -70,8 +70,8 @@ int TrisonicaMini::parse(const char* packet_data) {
 	      u_m_s, v_m_s, w_m_s,
 	      temp_C, rel_humidity, P_mb, rho_kg_m3;
 	int scan_result = sscanf(packet_data,
-	                         "S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n\n",
-	                         &windspeed_m_s
+	                         "S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n",
+	                         &windspeed_m_s,
 	                         &wind_direction_deg,
 	                         &u_m_s,
 	                         &v_m_s,
@@ -84,24 +84,14 @@ int TrisonicaMini::parse(const char* packet_data) {
 	/* Check the scan result. If something is wrong, try again. */
 	if (scan_result != 9) {
 		PX4_ERR("Invalid string format from Anemometer: %d tokens read", scan_result);
-		return -EAGAIN;
+		return PX4_ERROR;
 	}
 
 	/* If we have made it here, we have a good packet of data */
 	PX4_DEBUG("%s", packet_data);
 
 	/* Convert pressure from millibar to Pascals */
-	float P_Pa = P_mb*100.0;
-
-	//PX4_INFO("DEV ID: %d", _device_ID); // Debug
-	//Display Data
-	/*
-	printf("S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n",
-	(double) windspeed_m_s, (double) wind_direction_deg,
-	(double) u_m_s, (double) v_m_s, (double) w_m_s,
-	(double) temp_C, (double) rel_humidity,
-	(double) P_Pa, (double) rho_kg_m3); //Debug
-	*/
+	float P_Pa = P_mb*100.0f;
 
 	/* Assign values to the "sensor_anemometer" message */
 	sensor_anemometer_s sensor_anemometer{};
@@ -132,7 +122,7 @@ int TrisonicaMini::collect() {
 	perf_begin(_sample_perf);
 
 	/* Make note of the time since the last read */
-	int64_t read_elapsed = hrt_elapsed_time(&_last_read);
+	hrt_abstime read_elapsed = hrt_elapsed_time(&_last_read);
 
 	/* The number of bytes read is the packet length minus null termination */
 	char readbuf[sizeof(_packet)];
@@ -140,17 +130,11 @@ int TrisonicaMini::collect() {
 
 	/* Perform a read */
 	int bytes_read = ::read(_fd, &readbuf[_readbuf_idx], readlen);
-	PX4_INFO("Bytes read: %d\n", bytes_read);
-
-	//For debugging, change bytes_read to see how the code is affected
-	//bytes_read = -1;
-	//PX4_INFO ("Read elapsed: %lf", (double) read_elapsed/1000000); // Debug
-	//PX4_INFO ("Last read: %lf", (double) _last_read/1000000); // Debug
-	//PX4_INFO ("Abs time: %lf", (double) hrt_absolute_time()/1000000); // Debug
+	PX4_DEBUG("Bytes read: %d\n", bytes_read);
 
 	/* Check for read errors */
 	if (bytes_read == 0) {
-		PX4_INFO("Zero bytes read without error. Read again.\n");
+		PX4_DEBUG("Zero bytes read without error. Read again.\n");
 		return -EAGAIN;
 	} else if (bytes_read < 0) {
 		PX4_ERR("Read error: %d", bytes_read);
