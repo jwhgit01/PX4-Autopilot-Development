@@ -70,7 +70,7 @@ int TrisonicaMini::parse(const char* packet_data) {
 	      u_m_s, v_m_s, w_m_s,
 	      temp_C, rel_humidity, P_mb, rho_kg_m3;
 	int scan_result = sscanf(packet_data,
-	                         "S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n\n", /* Will this work with just one \n? */
+	                         "S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n\n",
 	                         &windspeed_m_s
 	                         &wind_direction_deg,
 	                         &u_m_s,
@@ -79,7 +79,7 @@ int TrisonicaMini::parse(const char* packet_data) {
 	                         &temp_C,
 	                         &rel_humidity,
 	                         &P_mb,
-	                         &rho_kg_m3);
+	                         &rho_kg_m3); /* Will this work with just one \n? */
 
 	/* Check the scan result. If something is wrong, try again. */
 	if (scan_result != 9) {
