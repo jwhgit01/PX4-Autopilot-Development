@@ -1,7 +1,0 @@
-module_name: Triosonica Mini Anemometer
-serial_config:
-    - command: trisonica_mini start -d ${SERIAL_DEV}
-      port_config_param:
-        name: SENS_TRIMINI_CFG
-        group: Sensors
-

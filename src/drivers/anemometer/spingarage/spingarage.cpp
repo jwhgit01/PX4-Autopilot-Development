@@ -31,9 +31,9 @@
  *
  ****************************************************************************/
 
-#include "trisonica_mini.hpp"
+#include "spingarage.hpp"
 
-TrisonicaMini::TrisonicaMini(const char *port) :
+Spingarage::Spingarage(const char *port) :
 	ScheduledWorkItem(MODULE_NAME, px4::serial_port_to_wq(port)),
 	_sample_perf(perf_alloc(PC_ELAPSED, MODULE_NAME": read")),
 	_comms_errors(perf_alloc(PC_COUNT, MODULE_NAME": com_err"))
@@ -53,18 +53,18 @@ TrisonicaMini::TrisonicaMini(const char *port) :
 	}
 }
 
-TrisonicaMini::~TrisonicaMini() {
+Spingarage::~Spingarage() {
 	stop();
 	perf_free(_sample_perf);
 	perf_free(_comms_errors);
 }
 
-int TrisonicaMini::init() {
+int Spingarage::init() {
 	start();
 	return PX4_OK;
 }
 
-int TrisonicaMini::parse(const char* packet_data) {
+int Spingarage::parse(const char* packet_data) {
 	/* Read and assign values to the data */
 	float V_kn, betaf_deg, alpha_deg, pitot_mbar, static_mbar, h_ft, alpha_mV, betaf_mV;
 	int scan_result = sscanf(packet_data,
@@ -112,7 +112,7 @@ int TrisonicaMini::parse(const char* packet_data) {
 	return PX4_OK;
 }
 
-int TrisonicaMini::collect() {
+int Spingarage::collect() {
 	/* We are begining a sample */
 	PX4_DEBUG("Starting collection...\n");
 	perf_begin(_sample_perf);
@@ -218,7 +218,7 @@ int TrisonicaMini::collect() {
 	return PX4_OK;
 }
 
-int TrisonicaMini::open_serial_port() {
+int Spingarage::open_serial_port() {
 	/* file descriptor initialized? */
 	if (_fd > 0) {
 		PX4_DEBUG("serial port already open");
@@ -284,7 +284,7 @@ int TrisonicaMini::open_serial_port() {
 	return PX4_OK;
 }
 
-void TrisonicaMini::Run() {
+void Spingarage::Run() {
 	/* make sure the serial port is open */
 	open_serial_port();
 
@@ -295,13 +295,13 @@ void TrisonicaMini::Run() {
 	}
 }
 
-void TrisonicaMini::start() {
+void Spingarage::start() {
 	/* schedule the driver at regular intervals */
-	PX4_INFO("Starting trisonica_mini...\n");
+	PX4_INFO("Starting spingarage...\n");
 	ScheduleOnInterval(_interval);
 }
 
-void TrisonicaMini::stop() {
+void Spingarage::stop() {
 	/* Ensure the serial port is closed. */
 	::close(_fd);
 
@@ -309,7 +309,7 @@ void TrisonicaMini::stop() {
 	ScheduleClear();
 }
 
-void TrisonicaMini::print_info() {
+void Spingarage::print_info() {
 	perf_print_counter(_sample_perf);
 	perf_print_counter(_comms_errors);
 }

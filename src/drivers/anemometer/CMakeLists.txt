@@ -31,4 +31,4 @@
 #
 ############################################################################
 
-add_subdirectory(trisonica_mini)
+add_subdirectory(spingarage)

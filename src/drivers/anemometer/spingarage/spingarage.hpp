@@ -65,13 +65,13 @@ using namespace time_literals;
 static constexpr float KN2MS = 463.0/900.0; // knots to meters per second
 static constexpr float FT2M = 0.3048; // feet to meters
 static constexpr float MBAR2PA = 100.0; // millibar to Pascals
-static constexpr unsigned PACKETLEN = 128; // The length of a packet including null termination
+static constexpr unsigned PACKETLEN = 52; // The length of a packet including null termination
 
-class TrisonicaMini : public px4::ScheduledWorkItem
+class Spingarage : public px4::ScheduledWorkItem
 {
 public:
-	TrisonicaMini(const char *port);
-	~TrisonicaMini() override;
+	Spingarage(const char *port);
+	~Spingarage() override;
 
 	int init();
 	void print_info();

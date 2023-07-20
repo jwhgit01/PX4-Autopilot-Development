@@ -31,14 +31,14 @@
  *
  ****************************************************************************/
 
-#include "trisonica_mini.hpp"
+#include "spingarage.hpp"
 
 #include <px4_platform_common/getopt.h>
 #include <px4_platform_common/module.h>
 
-namespace trisonica_mini {
+namespace spingarage {
 
-TrisonicaMini *g_dev{nullptr};
+Spingarage *g_dev{nullptr};
 
 static int start(const char *port) {
 	if (g_dev != nullptr) {
@@ -52,7 +52,7 @@ static int start(const char *port) {
 	}
 
 	/* create the driver */
-	g_dev = new TrisonicaMini(port);
+	g_dev = new Spingarage(port);
 
 	if (g_dev == nullptr) {
 		return -1;
@@ -95,19 +95,19 @@ static int usage() {
 		R"DESCR_STR(
 ### Description
 
-Serial driver for the Trisonica Mini anemometer.
+Serial driver for the Spingarage air data unit.
 
-TODO: Configure the cubeorange board to enable/start the driver on a specified UART using the SENS_TRIMINI_CFG parameter.
+TODO: Configure the cubeorange board to enable/start the driver on a specified UART using the SENS_SG_CFG parameter.
 
 ### Examples
 
 Attempt to start driver on a specified serial device.
-$ trisonica_mini start -d /dev/ttyS1
+$ spingarage start -d /dev/ttyS1
 Stop driver
-$ trisonica_mini stop
+$ spingarage stop
 )DESCR_STR");
 
-	PRINT_MODULE_USAGE_NAME("trisonica_mini", "driver");
+	PRINT_MODULE_USAGE_NAME("spingarage", "driver");
 	PRINT_MODULE_USAGE_SUBCATEGORY("anemometer");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("start", "Start driver");
 	PRINT_MODULE_USAGE_PARAM_STRING('d', nullptr, nullptr, "Serial device", false);
@@ -117,7 +117,7 @@ $ trisonica_mini stop
 
 } // namespace
 
-extern "C" __EXPORT int trisonica_mini_main(int argc, char *argv[]) {
+extern "C" __EXPORT int spingarage_main(int argc, char *argv[]) {
 	const char *device_path = nullptr;
 	int ch;
 	int myoptind = 1;
@@ -130,26 +130,26 @@ extern "C" __EXPORT int trisonica_mini_main(int argc, char *argv[]) {
 			break;
 
 		default:
-			trisonica_mini::usage();
+			spingarage::usage();
 			return -1;
 		}
 	}
 
 	if (myoptind >= argc) {
-		trisonica_mini::usage();
+		spingarage::usage();
 		return -1;
 	}
 
 	if (!strcmp(argv[myoptind], "start")) {
-		return trisonica_mini::start(device_path);
+		return spingarage::start(device_path);
 
 	} else if (!strcmp(argv[myoptind], "stop")) {
-		return trisonica_mini::stop();
+		return spingarage::stop();
 
 	} else if (!strcmp(argv[myoptind], "status")) {
-		return trisonica_mini::status();
+		return spingarage::status();
 	}
 
-	trisonica_mini::usage();
+	spingarage::usage();
 	return -1;
 }

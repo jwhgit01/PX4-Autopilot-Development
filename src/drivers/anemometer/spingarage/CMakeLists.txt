@@ -31,12 +31,12 @@
 #
 ############################################################################
 px4_add_module(
-	MODULE drivers__anemometer__trisonica_mini
-	MAIN trisonica_mini
+	MODULE drivers__anemometer__spingarage
+	MAIN spingarage
 	SRCS
-		trisonica_mini.cpp
-		trisonica_mini.hpp
-		trisonica_mini_main.cpp
+		spingarage.cpp
+		spingarage.hpp
+		spingarage_main.cpp
 	DEPENDS
 		px4_work_queue
 	MODULE_CONFIG

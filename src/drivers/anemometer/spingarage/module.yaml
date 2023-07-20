@@ -1,0 +1,7 @@
+module_name: Spingarage Air Data Unit
+serial_config:
+    - command: spingarage start -d ${SERIAL_DEV}
+      port_config_param:
+        name: SENS_SG_CFG
+        group: Sensors
+
