@@ -33,8 +33,6 @@
 px4_add_module(
 	MODULE drivers__anemometer__trisonica_mini
 	MAIN trisonica_mini
-	COMPILE_FLAGS
-		# -Wno-cast-align # TODO: fix and enable
 	SRCS
 		trisonica_mini.cpp
 		trisonica_mini.hpp

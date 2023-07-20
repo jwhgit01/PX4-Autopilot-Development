@@ -2,9 +2,8 @@ menu "Anemometers"
     menuconfig COMMON_ANEMOMETER
         bool "Common anemometers"
         default n
-        select DRIVERS_ANEMOMETER_TRIMINI
+        select DRIVERS_ANEMOMETER_TRISONICA_MINI
         ---help---
             Enable default set of anemometer drivers
-
     rsource "*/Kconfig"
 endmenu
