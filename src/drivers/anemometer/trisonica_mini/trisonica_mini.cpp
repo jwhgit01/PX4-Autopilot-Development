@@ -65,52 +65,48 @@ int TrisonicaMini::init() {
 }
 
 int TrisonicaMini::parse(const char* packet_data) {
-	/* Read and assign values to the data (See pg.28 of the manual for units) */
-	float windspeed_m_s, wind_direction_deg,
-	      u_m_s, v_m_s, w_m_s,
-	      temp_C, rel_humidity, P_mb, rho_kg_m3;
+	/* Read and assign values to the data */
+	float V_kn, betaf_deg, alpha_deg, pitot_mbar, static_mbar, h_ft, alpha_mV, betaf_mV;
 	int scan_result = sscanf(packet_data,
-	                         "S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n",
-	                         &windspeed_m_s,
-	                         &wind_direction_deg,
-	                         &u_m_s,
-	                         &v_m_s,
-	                         &w_m_s,
-	                         &temp_C,
-	                         &rel_humidity,
-	                         &P_mb,
-	                         &rho_kg_m3); /* Will this work with just one \n? */
+	        "$ADC,%f,%f,%f,%f,%f,%f,%f,%f\r\n",
+	        &V_kn,
+		&h_ft,
+		&pitot_mbar,
+		&static_mbar,
+		&alpha_deg,
+		&betaf_deg,
+		&alpha_mV,
+		&betaf_mV
+	);
 
 	/* Check the scan result. If something is wrong, try again. */
-	if (scan_result != 9) {
-		PX4_ERR("Invalid string format from Anemometer: %d tokens read", scan_result);
+	if (scan_result != 8) {
+		PX4_ERR("Invalid string format from spingarage: %d tokens read", scan_result);
 		return PX4_ERROR;
 	}
 
 	/* If we have made it here, we have a good packet of data */
 	PX4_DEBUG("%s", packet_data);
 
-	/* Convert pressure from millibar to Pascals */
-	float P_Pa = P_mb*100.0f;
+	/* Units conversion */
+	float V_m_s = V_kn*KN2MS;
+	float betaf_rad = betaf_deg*M_DEG_TO_RAD_F;
+	float alpha_rad = alpha_deg*M_DEG_TO_RAD_F;
+	float pitot_Pa = pitot_mbar*MBAR2PA;
+	float static_Pa = static_mbar*MBAR2PA;
+	float h_m = h_ft*FT2M;
 
-	/* Assign values to the "sensor_anemometer" message */
-	sensor_anemometer_s sensor_anemometer{};
-	sensor_anemometer.device_id = _device_ID;
-	sensor_anemometer.timestamp = timestamp_us;
-	sensor_anemometer.u = u_m_s;
-	sensor_anemometer.v = v_m_s;
-	sensor_anemometer.w = w_m_s;
-	_sensor_anemometer_pub.publish(sensor_anemometer);
-
-	/* Assign values to the "sensor_pth" message */
-	sensor_pth_s sensor_pth{};
-	sensor_pth.device_id = _device_ID;
-	sensor_pth.timestamp = timestamp_us;
-	sensor_pth.pressure = P_Pa;
-	sensor_pth.temperature = temp_C;
-	sensor_pth.humidity = rel_humidity;
-	sensor_pth.air_density = rho_kg_m3;
-	_sensor_pth_pub.publish(sensor_pth);
+	/* Create and assign values to the sensor_airdata message */
+	sensor_airdata_s sensor_airdata{};
+	sensor_airdata.timestamp = timestamp_us;
+	sensor_airdata.device_id = _device_ID;
+	sensor_airdata.airspeed_m_s = V_m_s;
+	sensor_airdata.flank_angle_rad = betaf_rad;
+	sensor_airdata.angle_of_attack_rad = alpha_rad;
+	sensor_airdata.pitot_pressure_pa = pitot_Pa;
+	sensor_airdata.static_pressure_pa = static_Pa;
+	sensor_airdata.pressure_alt_m = h_m;
+	_sensor_airdata_pub.publish(sensor_airdata);
 
 	/* Successfully read and published a packet of data! Keep reading! */
 	return PX4_OK;

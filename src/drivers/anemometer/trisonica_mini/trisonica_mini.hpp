@@ -52,8 +52,7 @@
 #include <lib/perf/perf_counter.h>
 
 #include <uORB/PublicationMulti.hpp>
-#include <uORB/topics/sensor_anemometer.h>
-#include <uORB/topics/sensor_pth.h>
+#include <uORB/topics/sensor_airdata.h>
 
 #include <inttypes.h>
 #include <fcntl.h>
@@ -62,6 +61,11 @@
 #include <unistd.h>
 
 using namespace time_literals;
+
+/* constants */
+static constexpr float KN2MS = 463.0/900.0; // knots to meters per second
+static constexpr float FT2M = 0.3048; // feet to meters
+static constexpr float MBAR2PA = 100.0; // millibar to Pascals
 
 class TrisonicaMini : public px4::ScheduledWorkItem
 {
@@ -104,6 +108,5 @@ private:
 	perf_counter_t _sample_perf; // Number of samples performed
 	perf_counter_t _comms_errors; // Number of sample errors
 
-	uORB::PublicationMulti<sensor_anemometer_s> _sensor_anemometer_pub{ORB_ID(sensor_anemometer)};
-	uORB::PublicationMulti<sensor_pth_s> _sensor_pth_pub{ORB_ID(sensor_pth)};
+	uORB::PublicationMulti<sensor_airdata_s> _sensor_airdata_pub{ORB_ID(sensor_airdata)};
 };
