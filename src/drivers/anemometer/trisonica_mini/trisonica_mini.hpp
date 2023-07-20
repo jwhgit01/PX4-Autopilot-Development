@@ -32,11 +32,10 @@
  ****************************************************************************/
 
 /**
- * @file trisonica_mini.hpp
+ * @file spingarage.hpp
  * @author Jeremy Hopwood <jeremyhopwood@vt.edu>
- * @author Nazmus Sakib <>
  *
- * Driver for the Trisonica Mini 3D sonic anemometer
+ * Driver for the Spingarage air data unit
  */
 
 #pragma once
@@ -66,6 +65,7 @@ using namespace time_literals;
 static constexpr float KN2MS = 463.0/900.0; // knots to meters per second
 static constexpr float FT2M = 0.3048; // feet to meters
 static constexpr float MBAR2PA = 100.0; // millibar to Pascals
+static constexpr unsigned PACKETLEN = 128; // The length of a packet including null termination
 
 class TrisonicaMini : public px4::ScheduledWorkItem
 {
@@ -90,14 +90,14 @@ private:
 
 	/* Private variables */
 	char _port[20] {}; // Serial port name
-	unsigned _baud{B115200}; // Baud rate of the Trisonical Mini
-	int _interval{10_ms}; // Read interval. The Trisonica Mini sampling rate is 10 Hz.
-	int	_fd{-1}; // Serial port file descriptor
-	char _packet[128] {}; // A packet of data from the anemometer
-	unsigned _readbuf_idx = 0; // The read buffer index (where the incoming data is being placed)
+	unsigned _baud{B115200}; // Baud rate of the air data system
+	int _interval{10_ms}; // Read interval. The spingarage sampling rate is ???? Hz.
+	int _fd{-1}; // Serial port file descriptor
+	unsigned _readlen = PACKETLEN - 1; // The nmber of bytes to read
+	char _packet[PACKETLEN] {}; // A buffer for assembling a packet of data
 	unsigned _packet_idx = 0; // The packet index (where the valid bytes read are placed)
 	hrt_abstime _last_read{0}; // Time of the last read used for error checking
-	const char _starting_char = 'S'; // Starting character of a packet
+	const char _starting_char = '$'; // Starting character of a packet
 	const char _ending_char = '\n'; // Ending character of a packet
 	bool _assemble_packet = 0; // Boolean whether to start assembling the packet
 	int _overrun_count = 0; // Buffer overrun counter

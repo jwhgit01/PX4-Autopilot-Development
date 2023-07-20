@@ -120,12 +120,11 @@ int TrisonicaMini::collect() {
 	/* Make note of the time since the last read */
 	hrt_abstime read_elapsed = hrt_elapsed_time(&_last_read);
 
-	/* The number of bytes read is the packet length minus null termination */
-	char readbuf[sizeof(_packet)];
-	unsigned readlen = sizeof(readbuf) - 1;
+	/* Create the read buffer */
+	char readbuf[_readlen];
 
 	/* Perform a read */
-	int bytes_read = ::read(_fd, &readbuf[_readbuf_idx], readlen);
+	int bytes_read = ::read(_fd, &readbuf[0], _readlen);
 	PX4_DEBUG("Bytes read: %d\n", bytes_read);
 
 	/* Check for read errors */
@@ -151,7 +150,7 @@ int TrisonicaMini::collect() {
 	_last_read = hrt_absolute_time();
 
 	/* Loop through the read buffer and assemble a packet */
-	for (int i = _readbuf_idx; i < bytes_read; i++) {
+	for (int i = 0; i < bytes_read; i++) {
 
 		/* If we haven't already found it, look for the start of the packet character */
 		if (!_assemble_packet && readbuf[i] == _starting_char) {
@@ -187,14 +186,13 @@ int TrisonicaMini::collect() {
 
 			/* If we hit a null ('\0') character, something is wrong. Reset everything. */
 			else if	(readbuf[i] == '\0') {
-				_readbuf_idx = 0;
 				_assemble_packet = 0;
 				PX4_ERR("Something is wrong, read again!");
 				return -EAGAIN; // Read again
 			}
 
 			/* If the packet index is too large, handle buffer overrun */
-			else if (_packet_idx > 200) {
+			else if (_packet_idx > PACKETLEN - 1) {
 				PX4_ERR("Buffer overrun!\n");
 				_overrun_count++; // Increase the counter
 				_packet[_packet_idx] = '\0'; // Terminate with a null
@@ -216,7 +214,6 @@ int TrisonicaMini::collect() {
 	}
 
 	/* No more data to read! (end of read buffer reached) */
-	_readbuf_idx = 0;
 	perf_end(_sample_perf);
 	return PX4_OK;
 }
@@ -254,7 +251,7 @@ int TrisonicaMini::open_serial_port() {
 	uart_config.c_cflag |= CS8;	/* 8-bit characters */
 	uart_config.c_cflag &= ~PARENB;	/* no parity bit */
 	uart_config.c_cflag &= ~CSTOPB;	/* only need 1 stop bit */
-	uart_config.c_iflag |= ICRNL; 	/* CR is a line terminator */
+	uart_config.c_iflag &= ~ICRNL; 	/* no CR to NL translation */
 	uart_config.c_iflag |= IGNPAR; 	/* Ignore parity errors */
 
 	/* no flow control */
