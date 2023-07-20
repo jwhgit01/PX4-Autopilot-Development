@@ -31,7 +31,7 @@
 #
 ############################################################################
 px4_add_module(
-	MODULE drivers__anemometer__spingarage
+	MODULE drivers__airdata__spingarage
 	MAIN spingarage
 	SRCS
 		spingarage.cpp

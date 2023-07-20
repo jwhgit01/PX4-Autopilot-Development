@@ -1,5 +1,0 @@
-menuconfig DRIVERS_ANEMOMETER_SPINGARAGE
-	bool "spinagarage"
-	default y
-	---help---
-		Enable support for spingarage

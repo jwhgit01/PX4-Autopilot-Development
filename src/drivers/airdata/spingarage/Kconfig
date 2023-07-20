@@ -1,0 +1,5 @@
+menuconfig DRIVERS_AIRDATA_SPINGARAGE
+	bool "spingarage"
+	default y
+	---help---
+		Enable support for spingarage

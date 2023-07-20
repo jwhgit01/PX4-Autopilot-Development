@@ -1,0 +1,9 @@
+menu "Air data systems"
+    menuconfig COMMON_AIRDATA
+        bool "Common air data systems"
+        default n
+        select DRIVERS_AIRDATA_SPINGARAGE
+        ---help---
+            Enable default set of air data system drivers
+    rsource "*/Kconfig"
+endmenu

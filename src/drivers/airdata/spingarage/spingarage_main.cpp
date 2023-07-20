@@ -108,7 +108,7 @@ $ spingarage stop
 )DESCR_STR");
 
 	PRINT_MODULE_USAGE_NAME("spingarage", "driver");
-	PRINT_MODULE_USAGE_SUBCATEGORY("anemometer");
+	PRINT_MODULE_USAGE_SUBCATEGORY("airdata");
 	PRINT_MODULE_USAGE_COMMAND_DESCR("start", "Start driver");
 	PRINT_MODULE_USAGE_PARAM_STRING('d', nullptr, nullptr, "Serial device", false);
 	PRINT_MODULE_USAGE_COMMAND_DESCR("stop", "Stop driver");
