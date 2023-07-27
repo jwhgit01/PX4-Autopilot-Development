@@ -70,7 +70,7 @@ int TrisonicaMini::parse(const char* packet_data) {
 	      u_m_s, v_m_s, w_m_s,
 	      temp_C, rel_humidity, P_mb, rho_kg_m3;
 	int scan_result = sscanf(packet_data,
-	                         "S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n",
+	                         "S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\r\n",
 	                         &windspeed_m_s,
 	                         &wind_direction_deg,
 	                         &u_m_s,
@@ -79,7 +79,7 @@ int TrisonicaMini::parse(const char* packet_data) {
 	                         &temp_C,
 	                         &rel_humidity,
 	                         &P_mb,
-	                         &rho_kg_m3); /* Will this work with just one \n? */
+	                         &rho_kg_m3);
 
 	/* Check the scan result. If something is wrong, try again. */
 	if (scan_result != 9) {
@@ -91,7 +91,7 @@ int TrisonicaMini::parse(const char* packet_data) {
 	PX4_DEBUG("%s", packet_data);
 
 	/* Convert pressure from millibar to Pascals */
-	float P_Pa = P_mb*100.0f;
+	float P_Pa = P_mb*MBAR2PA;
 
 	/* Assign values to the "sensor_anemometer" message */
 	sensor_anemometer_s sensor_anemometer{};
@@ -124,12 +124,11 @@ int TrisonicaMini::collect() {
 	/* Make note of the time since the last read */
 	hrt_abstime read_elapsed = hrt_elapsed_time(&_last_read);
 
-	/* The number of bytes read is the packet length minus null termination */
-	char readbuf[sizeof(_packet)];
-	unsigned readlen = sizeof(readbuf) - 1;
+	/* Create the read buffer */
+	char readbuf[_readlen];
 
 	/* Perform a read */
-	int bytes_read = ::read(_fd, &readbuf[_readbuf_idx], readlen);
+	int bytes_read = ::read(_fd, &readbuf[0], _readlen);
 	PX4_DEBUG("Bytes read: %d\n", bytes_read);
 
 	/* Check for read errors */
@@ -155,7 +154,7 @@ int TrisonicaMini::collect() {
 	_last_read = hrt_absolute_time();
 
 	/* Loop through the read buffer and assemble a packet */
-	for (int i = _readbuf_idx; i < bytes_read; i++) {
+	for (int i = 0; i < bytes_read; i++) {
 
 		/* If we haven't already found it, look for the start of the packet character */
 		if (!_assemble_packet && readbuf[i] == _starting_char) {
@@ -189,24 +188,22 @@ int TrisonicaMini::collect() {
 				timestamp_us = hrt_absolute_time(); // Get the data timestamp in microseconds
 			}
 
-			/* If we hit a null ('\0') character, something is wrong. Reset everything. */
-			else if	(readbuf[i] == '\0') {
-				_readbuf_idx = 0;
-				_assemble_packet = 0;
-				PX4_ERR("Something is wrong, read again!");
-				return -EAGAIN; // Read again
-			}
+			///* If we hit a null ('\0') character, something is wrong. Reset everything. */
+			//else if	(readbuf[i] == '\0') {
+			//	_assemble_packet = 0;
+			//	PX4_ERR("Something is wrong, read again!");
+			//	return -EAGAIN; // Read again
+			//}
 
 			/* If the packet index is too large, handle buffer overrun */
-			else if (_packet_idx > 200) {
+			else if (_packet_idx > PACKETLEN - 1) {
 				PX4_ERR("Buffer overrun!\n");
 				_overrun_count++; // Increase the counter
 				_packet[_packet_idx] = '\0'; // Terminate with a null
-				_packet_idx = -1; // Set the packet index to -1 as it will get incremented later
 				_assemble_packet = false; // Look for start of packet character
 				if (_overrun_count > 10) {
 					_overrun_count = 0; // reset the count
-					PX4_ERR("Exiting out, something is wrong!\n");
+					PX4_ERR("Too many buffer overruns!\n");
 					return PX4_ERROR;
 				}
 				PX4_ERR("Trying again!\n");
@@ -220,7 +217,6 @@ int TrisonicaMini::collect() {
 	}
 
 	/* No more data to read! (end of read buffer reached) */
-	_readbuf_idx = 0;
 	perf_end(_sample_perf);
 	return PX4_OK;
 }
@@ -258,7 +254,7 @@ int TrisonicaMini::open_serial_port() {
 	uart_config.c_cflag |= CS8;	/* 8-bit characters */
 	uart_config.c_cflag &= ~PARENB;	/* no parity bit */
 	uart_config.c_cflag &= ~CSTOPB;	/* only need 1 stop bit */
-	uart_config.c_iflag |= ICRNL; 	/* CR is a line terminator */
+	uart_config.c_iflag &= ~ICRNL; 	/* no CR to NL translation */
 	uart_config.c_iflag |= IGNPAR; 	/* Ignore parity errors */
 
 	/* no flow control */
