@@ -184,23 +184,22 @@ int Spingarage::collect() {
 				timestamp_us = hrt_absolute_time(); // Get the data timestamp in microseconds
 			}
 
-			/* If we hit a null ('\0') character, something is wrong. Reset everything. */
-			else if	(readbuf[i] == '\0') {
-				_assemble_packet = 0;
-				PX4_ERR("Something is wrong, read again!");
-				return -EAGAIN; // Read again
-			}
+			///* If we hit a null ('\0') character, something is wrong. Reset everything. */
+			//else if	(readbuf[i] == '\0') {
+			//	_assemble_packet = 0;
+			//	PX4_ERR("Something is wrong, read again!");
+			//	return -EAGAIN; // Read again
+			//}
 
 			/* If the packet index is too large, handle buffer overrun */
 			else if (_packet_idx > PACKETLEN - 1) {
 				PX4_ERR("Buffer overrun!\n");
 				_overrun_count++; // Increase the counter
 				_packet[_packet_idx] = '\0'; // Terminate with a null
-				_packet_idx = -1; // Set the packet index to -1 as it will get incremented later
 				_assemble_packet = false; // Look for start of packet character
 				if (_overrun_count > 10) {
 					_overrun_count = 0; // reset the count
-					PX4_ERR("Exiting out, something is wrong!\n");
+					PX4_ERR("Too many buffer overruns!\n");
 					return PX4_ERROR;
 				}
 				PX4_ERR("Trying again!\n");

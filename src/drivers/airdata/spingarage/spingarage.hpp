@@ -93,7 +93,7 @@ private:
 	unsigned _baud{B115200}; // Baud rate of the air data system
 	int _interval{10_ms}; // Read interval. The spingarage sampling rate is ???? Hz.
 	int _fd{-1}; // Serial port file descriptor
-	unsigned _readlen = PACKETLEN - 1; // The nmber of bytes to read
+	unsigned _readlen = PACKETLEN - 1; // The number of bytes to read
 	char _packet[PACKETLEN] {}; // A buffer for assembling a packet of data
 	unsigned _packet_idx = 0; // The packet index (where the valid bytes read are placed)
 	hrt_abstime _last_read{0}; // Time of the last read used for error checking
