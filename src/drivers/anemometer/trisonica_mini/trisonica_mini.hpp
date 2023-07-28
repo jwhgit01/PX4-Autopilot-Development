@@ -91,7 +91,7 @@ private:
 	/* Private variables */
 	char _port[20] {}; // Serial port name
 	unsigned _baud{B115200}; // Baud rate of the Trisonical Mini
-	int _interval{10_ms}; // Read interval. The Trisonica Mini sampling rate is 10 Hz.
+	int _interval{50_ms}; // Read interval. The Trisonica Mini sampling rate is 10 Hz.
 	int	_fd{-1}; // Serial port file descriptor
 	unsigned _readlen = PACKETLEN - 1; // The number of bytes to read
 	char _packet[PACKETLEN] {}; // A buffer for assembling a packet of data

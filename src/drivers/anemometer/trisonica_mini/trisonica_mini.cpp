@@ -70,7 +70,7 @@ int TrisonicaMini::parse(const char* packet_data) {
 	      u_m_s, v_m_s, w_m_s,
 	      temp_C, rel_humidity, P_mb, rho_kg_m3;
 	int scan_result = sscanf(packet_data,
-	                         "S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\r\n",
+	                         "S:%f,D:%f,U:%f,V:%f,W:%f,T:%f,H:%f,P:%f,AD:%f\n\n",
 	                         &windspeed_m_s,
 	                         &wind_direction_deg,
 	                         &u_m_s,
@@ -129,7 +129,9 @@ int TrisonicaMini::collect() {
 
 	/* Perform a read */
 	int bytes_read = ::read(_fd, &readbuf[0], _readlen);
-	PX4_DEBUG("Bytes read: %d\n", bytes_read);
+	PX4_INFO("_fd = %d\n", _fd);
+	PX4_INFO("_readlen = %d\n", _readlen);
+	PX4_INFO("bytes_read = %d\n", bytes_read);
 
 	/* Check for read errors */
 	if (bytes_read == 0) {
@@ -142,7 +144,7 @@ int TrisonicaMini::collect() {
 
 		/* Throw an error if we don't have a read for 5 seconds */
 		if (read_elapsed > 5*1_s) {
-			PX4_ERR("Something is wrong! Exiting out.");
+			PX4_ERR("Read timeout.");
 			return PX4_ERROR;
 		}
 
@@ -254,7 +256,7 @@ int TrisonicaMini::open_serial_port() {
 	uart_config.c_cflag |= CS8;	/* 8-bit characters */
 	uart_config.c_cflag &= ~PARENB;	/* no parity bit */
 	uart_config.c_cflag &= ~CSTOPB;	/* only need 1 stop bit */
-	uart_config.c_iflag &= ~ICRNL; 	/* no CR to NL translation */
+	uart_config.c_iflag |= ICRNL; 	/* CR to NL translation */
 	uart_config.c_iflag |= IGNPAR; 	/* Ignore parity errors */
 
 	/* no flow control */
