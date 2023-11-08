@@ -59,6 +59,9 @@ void getModeRequirements(uint8_t vehicle_type, failsafe_flags_s &flags)
 	flags.mode_req_manual_control = 0;
 	flags.mode_req_other = 0;
 
+	// NAVIGATION_STATE_CUSTOM -JWH
+	setRequirement(vehicle_status_s::NAVIGATION_STATE_CUSTOM, flags.mode_req_manual_control);
+
 	// NAVIGATION_STATE_MANUAL
 	setRequirement(vehicle_status_s::NAVIGATION_STATE_MANUAL, flags.mode_req_manual_control);
 

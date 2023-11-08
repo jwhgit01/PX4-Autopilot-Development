@@ -75,6 +75,8 @@ static inline navigation_mode_t navigation_mode(uint8_t nav_state)
 	case vehicle_status_s::NAVIGATION_STATE_ORBIT: return navigation_mode_t::orbit;
 
 	case vehicle_status_s::NAVIGATION_STATE_AUTO_VTOL_TAKEOFF: return navigation_mode_t::auto_vtol_takeoff;
+
+	case vehicle_status_s::NAVIGATION_STATE_CUSTOM: return navigation_mode_t::custom; /* -JWH */
 	}
 
 	static_assert(vehicle_status_s::NAVIGATION_STATE_MAX  == 23, "code requires update");
@@ -92,7 +94,7 @@ const char *const nav_state_names[vehicle_status_s::NAVIGATION_STATE_MAX] = {
 	"6: unallocated",
 	"7: unallocated",
 	"AUTO_LANDENGFAIL",
-	"9: unallocated",
+	"CUSTOM", /* -JWH */
 	"ACRO",
 	"11: UNUSED",
 	"DESCEND",

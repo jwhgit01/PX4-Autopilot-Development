@@ -49,6 +49,12 @@ void getVehicleControlMode(bool armed, uint8_t nav_state, uint8_t vehicle_type,
 	vehicle_control_mode.flag_armed = armed;
 
 	switch (nav_state) {
+	/* -JWH */
+	case vehicle_status_s::NAVIGATION_STATE_CUSTOM:
+		vehicle_control_mode.flag_control_manual_enabled = true;
+		vehicle_control_mode.flag_control_custom_enabled = true;
+		break;
+
 	case vehicle_status_s::NAVIGATION_STATE_MANUAL:
 		vehicle_control_mode.flag_control_manual_enabled = true;
 		vehicle_control_mode.flag_control_rates_enabled = stabilization_required(vehicle_type);
