@@ -55,6 +55,7 @@ pipeline {
                      "cuav_nora_default",
                      "cuav_x7pro_default",
                      "cubepilot_cubeorange_default",
+                     "cubepilot_cubeorangeplus_cyphal",
                      "cubepilot_cubeorangeplus_default",
                      "cubepilot_cubeyellow_default",
                      "diatone_mamba-f405-mk2_default",
