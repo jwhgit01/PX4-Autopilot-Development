@@ -233,7 +233,7 @@ PARAM_DEFINE_INT32(UAVCAN_PUB_MBD, 0);
  * @reboot_required true
  * @group UAVCAN
  */
-PARAM_DEFINE_INT32(UAVCAN_SUB_ASPD, 0);
+PARAM_DEFINE_INT32(UAVCAN_SUB_ASPD, 1);
 
 /**
  * subscription barometer
@@ -378,3 +378,31 @@ PARAM_DEFINE_INT32(UAVCAN_SUB_RNG, 0);
  * @group UAVCAN
  */
 PARAM_DEFINE_INT32(UAVCAN_SUB_BTN, 0);
+
+
+
+/**
+ * Custom Esc
+ *
+ * Enable UAVCAN custom esc.
+ *
+ * @boolean
+ * @reboot_required true
+ * @group UAVCAN
+ */
+PARAM_DEFINE_INT32(UAVCAN_CUST_RPM, 1);
+
+
+
+/**
+ * ADU
+ *
+ * Enable UAVCAN ADU.
+ *
+ * @boolean
+ * @reboot_required true
+ * @group UAVCAN
+ */
+PARAM_DEFINE_INT32(UAVCAN_ADU, 1);
+
+

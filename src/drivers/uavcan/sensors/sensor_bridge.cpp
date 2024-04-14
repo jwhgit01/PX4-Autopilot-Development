@@ -52,6 +52,10 @@
 #include "rangefinder.hpp"
 #include "safety_button.hpp"
 
+#include "adu.hpp"
+#include "custom_rpm.hpp"
+
+
 /*
  * IUavcanSensorBridge
  */
@@ -153,6 +157,27 @@ void IUavcanSensorBridge::make_all(uavcan::INode &node, List<IUavcanSensorBridge
 	if (uavcan_sub_button != 0) {
 		list.add(new UavcanSafetyButtonBridge(node));
 	}
+
+	//custom esc
+	int32_t uavcan_custom_rpm = 1;
+	param_get(param_find("UAVCAN_CUST_RPM"), &uavcan_custom_rpm);
+
+	if(uavcan_custom_rpm != 0){
+		list.add(new UavcanCustomRPMBridge(node));
+	}
+
+
+	//adu
+	int32_t uavcan_adu = 1;
+	param_get(param_find("UAVCAN_ADU"), &uavcan_adu);
+
+	if(uavcan_adu != 0){
+		list.add(new UavcanADUBridge(node));
+	}
+
+
+
+
 }
 
 /*
