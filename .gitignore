@@ -110,4 +110,4 @@ src/systemcmds/topic_listener/listener_generated.cpp
 log/
 
 # include .px4 files in the build folder
-!**/*.px4
+!build/**/*.px4
