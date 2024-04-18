@@ -51,6 +51,7 @@
 #include "mag.hpp"
 #include "rangefinder.hpp"
 #include "safety_button.hpp"
+#include "adu.hpp"
 
 /*
  * IUavcanSensorBridge
