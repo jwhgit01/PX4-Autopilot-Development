@@ -161,6 +161,7 @@ px4_add_module(
 		actuators/servo.cpp
 
 		# Sensors
+		sensors/adu.cpp
 		sensors/sensor_bridge.cpp
 		sensors/differential_pressure.cpp
 		sensors/baro.cpp

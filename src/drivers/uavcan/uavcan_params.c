@@ -378,3 +378,16 @@ PARAM_DEFINE_INT32(UAVCAN_SUB_RNG, 0);
  * @group UAVCAN
  */
 PARAM_DEFINE_INT32(UAVCAN_SUB_BTN, 0);
+
+/**
+ * subscription air data unit
+ *
+ * Enable UAVCAN air data unit subscription.
+ *  uavcan::equipment::air_data::AngleOfAttack
+ *  uavcan::equipment::air_data::Sideslip
+ *
+ * @boolean
+ * @reboot_required true
+ * @group UAVCAN
+ */
+PARAM_DEFINE_INT32(UAVCAN_SUB_ADU, 1);
