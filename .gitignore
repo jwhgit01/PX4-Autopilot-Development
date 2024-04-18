@@ -108,6 +108,3 @@ src/systemcmds/topic_listener/listener_generated.cpp
 
 # colcon
 log/
-
-# add back .px4 build files
-!*.px4
